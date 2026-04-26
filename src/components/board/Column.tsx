@@ -33,7 +33,7 @@ export default function Column({ column, tasks, onEdit, onDelete }: Props) {
   return (
     <div
       ref={setNodeRef}
-      className={`flex flex-col rounded-2xl border-t-4 bg-secondary/30 p-4 min-w-[320px] transition-all ${
+      className={`flex flex-col flex-1 basis-0 rounded-2xl border-t-4 bg-secondary/30 p-4 min-w-[320px] transition-all ${
         columnStyles[column.id]
       } ${isOver ? "bg-primary/5 ring-2 ring-primary/20" : ""}`}
     >

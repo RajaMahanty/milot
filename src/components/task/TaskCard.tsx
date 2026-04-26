@@ -44,18 +44,18 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
       style={style}
       {...attributes}
       {...listeners}
-      className={`group relative flex flex-col rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:shadow-card hover:border-primary/20 ${
+      className={`group relative flex flex-col h-[130px] rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:shadow-card hover:border-primary/20 ${
         isDragging ? "z-50 opacity-0" : "opacity-100 cursor-grab active:cursor-grabbing"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-start justify-between gap-3 mb-1">
         <h3 
           onClick={(e) => { e.stopPropagation(); onEdit?.(task); }}
           className="text-sm font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors cursor-pointer pointer-events-auto"
         >
           {task.title}
         </h3>
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-end gap-1.5">
           {showProjectTag && (
             <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[9px] font-bold ${project ? 'border-primary/20 bg-primary/5 text-primary' : 'border-rose-200 bg-rose-50 text-rose-600'}`}>
               <span className="truncate max-w-[100px]">{project?.title || "No Workspace"}</span>
@@ -84,13 +84,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
         </div>
       </div>
 
-      {task.description && (
-        <p className="mt-2 line-clamp-2 text-xs font-medium text-muted-foreground leading-relaxed">
-          {task.description}
-        </p>
-      )}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {task.description && (
+          <p className="mt-1 line-clamp-2 text-[10px] font-medium text-muted-foreground leading-relaxed">
+            {task.description}
+          </p>
+        )}
+      </div>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-auto flex items-center justify-between pt-2">
         <div className="flex items-center gap-3">
           <div className="h-7 w-7 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold ring-1 ring-border shadow-sm">
             {task.assignedTo ? task.assignedTo.substring(0, 2).toUpperCase() : "U"}

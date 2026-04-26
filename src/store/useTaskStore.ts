@@ -2,7 +2,21 @@ import { create } from 'zustand';
 import { taskService } from '@/lib/taskService';
 import { useAuthStore } from './useAuthStore';
 
-export type Task = {
+export interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface Comment {
+  id: string;
+  author: string;
+  authorId: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface Task {
   id: string;
   uid?: string;
   projectId: string;
@@ -15,7 +29,9 @@ export type Task = {
   dueDate?: string;
   storyPoints?: number;
   createdAt: string;
-};
+  subtasks?: SubTask[];
+  comments?: Comment[];
+}
 
 export type Column = {
   id: "todo" | "in-progress" | "done";

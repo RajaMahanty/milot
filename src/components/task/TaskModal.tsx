@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from "react";
 import {
   Dialog,
@@ -6,18 +8,29 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useProjectStore } from "@/store/useProjectStore";
+import { Task, SubTask, Comment } from "@/store/useTaskStore";
+import {
+  CheckCircle2,
+  Circle,
+  Plus,
+  Send,
+  User,
+  Calendar,
+  AlertCircle,
+  Zap,
+  MoreHorizontal,
+  X,
+  AlignLeft,
+  ChevronRight,
+  Trash2,
+  MessageSquare
+} from "lucide-react";
+import { useAuthStore } from "@/store/useAuthStore";
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSave: (data: {
-    title: string;
-    description?: string;
-    priority?: "low" | "medium" | "high";
-    dueDate?: string;
-    projectId?: string;
-    storyPoints?: number;
-  }) => void;
+  onSave: (data: Partial<Task>) => void;
   initialData?: Task | null;
 };
 
@@ -29,12 +42,17 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [projectId, setProjectId] = useState<string>("");
   const [storyPoints, setStoryPoints] = useState<string>("");
 
+  const [subtasks, setSubtasks] = useState<SubTask[]>([]);
+  const [newSubtask, setNewSubtask] = useState("");
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+
   const { projects, activeProjectId } = useProjectStore();
+  const { user } = useAuthStore();
   const projectList = Object.values(projects);
 
   const isEditMode = !!initialData;
 
-  // Reset form whenever the modal opens or initialData changes
   useEffect(() => {
     if (open) {
       if (initialData) {
@@ -44,21 +62,22 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setDueDate(initialData.dueDate || "");
         setProjectId(initialData.projectId);
         setStoryPoints(initialData.storyPoints?.toString() || "");
+        setSubtasks(initialData.subtasks || []);
+        setComments(initialData.comments || []);
       } else {
         setTitle("");
         setDescription("");
         setPriority("medium");
         setDueDate("");
         setStoryPoints("");
-        // Set default project if active project is "all", otherwise use active project
+        setSubtasks([]);
+        setComments([]);
         setProjectId(activeProjectId && activeProjectId !== "all" ? activeProjectId : projectList[0]?.id || "");
       }
     }
   }, [open, initialData, activeProjectId, projectList]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-
+  const handleSave = () => {
     if (!title.trim() || !projectId) return;
 
     onSave({
@@ -68,139 +87,367 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       dueDate: dueDate || undefined,
       projectId: projectId,
       storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
+      subtasks,
+      comments,
     });
 
     onClose();
   };
 
+  const addSubtask = () => {
+    if (!newSubtask.trim()) return;
+    const sub: SubTask = {
+      id: crypto.randomUUID(),
+      title: newSubtask.trim(),
+      completed: false
+    };
+    setSubtasks([...subtasks, sub]);
+    setNewSubtask("");
+  };
+
+  const toggleSubtask = (id: string) => {
+    setSubtasks(subtasks.map(s => s.id === id ? { ...s, completed: !s.completed } : s));
+  };
+
+  const removeSubtask = (id: string) => {
+    setSubtasks(subtasks.filter(s => s.id !== id));
+  };
+
+  const addComment = () => {
+    if (!newComment.trim() || !user) return;
+    const comm: Comment = {
+      id: crypto.randomUUID(),
+      author: user.displayName || user.email || "Anonymous",
+      authorId: user.uid,
+      text: newComment.trim(),
+      createdAt: new Date().toISOString()
+    };
+    setComments([comm, ...comments]);
+    setNewComment("");
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent 
-        className="sm:max-w-md" 
-        aria-describedby={undefined}
+      <DialogContent
+        className="max-w-5xl max-h-[90vh] overflow-hidden p-0 border-none bg-white dark:bg-slate-950 rounded-3xl shadow-2xl no-scrollbar flex flex-col"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <DialogHeader>
-          <DialogTitle>{isEditMode ? "Edit Task" : "Create New Task"}</DialogTitle>
-        </DialogHeader>
-
-        <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
-            <label htmlFor="title" className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              Title <span className="text-red-500">*</span>
-            </label>
-            <input
-              id="title"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Update landing page"
-              className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
-              required
-            />
+        {/* Header Bar */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-slate-950/50 backdrop-blur-md sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+              <Target className="h-4 w-4" />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-400 dark:text-slate-500 tracking-wider">
+                {initialData?.id ? `TASK-${initialData.id.substring(0, 8).toUpperCase()}` : "NEW TASK"}
+              </span>
+              <ChevronRight className="h-3 w-3 text-slate-300" />
+              <DialogTitle className="text-sm font-bold text-slate-900 dark:text-white">Issue Details</DialogTitle>
+            </div>
           </div>
-
-          <div className="space-y-2">
-            <label htmlFor="description" className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              Description
-            </label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Add more details about this task..."
-              className="w-full resize-none rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
-              rows={3}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="project" className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              Workspace <span className="text-red-500">*</span>
-            </label>
-            <select
-              id="project"
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
-              required
-            >
-              <option value="" disabled>Select a workspace</option>
-              {projectList.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.title}
-                </option>
-              ))}
-            </select>
-            {projectList.length === 0 && (
-              <p className="text-[10px] text-rose-500 font-medium">Please create a workspace first.</p>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="priority" className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              Priority
-            </label>
-            <select
-              id="priority"
-              value={priority}
-              onChange={(e) => setPriority(e.target.value as "low" | "medium" | "high")}
-              className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
-            >
-              <option value="low">Low</option>
-              <option value="medium">Medium</option>
-              <option value="high">High</option>
-            </select>
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="dueDate" className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              Due Date
-            </label>
-            <input
-              id="dueDate"
-              type="date"
-              value={dueDate}
-              onChange={(e) => setDueDate(e.target.value)}
-              className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label htmlFor="storyPoints" className="text-sm font-medium text-gray-700 dark:text-gray-200">
-              Story Points
-            </label>
-            <input
-              id="storyPoints"
-              type="number"
-              min="1"
-              max="53"
-              step="1"
-              value={storyPoints}
-              onChange={(e) => setStoryPoints(e.target.value)}
-              placeholder="e.g. 5"
-              className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
-            />
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
+          <div className="flex items-center gap-2">
             <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-300 dark:text-gray-300 dark:hover:bg-gray-800"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={!title.trim()}
-              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={handleSave}
+              className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2"
             >
               {isEditMode ? "Save Changes" : "Create Task"}
             </button>
+            <button
+              onClick={onClose}
+              className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-        </form>
+        </div>
+
+        <div className="flex-1 overflow-y-auto no-scrollbar">
+          <div className="flex flex-col md:flex-row min-h-full">
+            {/* Main Content Column */}
+            <div className="flex-1 p-8 space-y-8 border-r border-slate-100 dark:border-slate-800">
+              {/* Title Section */}
+              <div className="space-y-4">
+                <textarea
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Task title..."
+                  rows={1}
+                  className="w-full text-3xl font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-slate-200 dark:placeholder:text-slate-800 text-slate-900 dark:text-white resize-none leading-tight"
+                  onInput={(e) => {
+                    const target = e.target as HTMLTextAreaElement;
+                    target.style.height = 'auto';
+                    target.style.height = target.scrollHeight + 'px';
+                  }}
+                />
+              </div>
+
+              {/* Description Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-slate-500">
+                  <AlignLeft className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Description</span>
+                </div>
+                <div className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus-within:border-primary/30 transition-colors">
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Add a detailed description..."
+                    className="w-full min-h-[160px] bg-transparent border-none p-4 text-sm font-medium text-slate-700 dark:text-slate-300 focus:ring-0 resize-none leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              {/* Subtasks Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Subtasks</span>
+                  </div>
+                  <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
+                    {subtasks.filter(s => s.completed).length} of {subtasks.length}
+                  </span>
+                </div>
+
+                {/* Progress Bar */}
+                {subtasks.length > 0 && (
+                  <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all duration-500"
+                      style={{ width: `${(subtasks.filter(s => s.completed).length / subtasks.length) * 100}%` }}
+                    />
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  {subtasks.map((st) => (
+                    <div key={st.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 group transition-colors">
+                      <button
+                        onClick={() => toggleSubtask(st.id)}
+                        className={`transition-colors ${st.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-400'}`}
+                      >
+                        {st.completed ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                      </button>
+                      <span className={`flex-1 text-sm font-medium ${st.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>
+                        {st.title}
+                      </span>
+                      <button
+                        onClick={() => removeSubtask(st.id)}
+                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all p-1"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+
+                  <div className="flex items-center gap-3 px-2 py-1">
+                    <Plus className="h-4 w-4 text-slate-300" />
+                    <input
+                      type="text"
+                      value={newSubtask}
+                      onChange={(e) => setNewSubtask(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && addSubtask()}
+                      placeholder="Add a subtask..."
+                      className="flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 p-0 placeholder:text-slate-400"
+                    />
+                    {newSubtask && (
+                      <button
+                        onClick={addSubtask}
+                        className="text-xs font-bold text-primary hover:underline"
+                      >
+                        Add
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Comments Section */}
+              <div className="space-y-6 pt-4">
+                <div className="flex items-center gap-2 text-slate-500">
+                  <MessageSquare className="h-4 w-4" />
+                  <span className="text-xs font-bold uppercase tracking-wider">Activity</span>
+                </div>
+
+                <div className="flex gap-4">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="flex-1 space-y-3">
+                    <textarea
+                      value={newComment}
+                      onChange={(e) => setNewComment(e.target.value)}
+                      placeholder="Write a comment..."
+                      className="w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 shadow-sm transition-all focus:border-primary/30"
+                      rows={2}
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        onClick={addComment}
+                        disabled={!newComment.trim()}
+                        className="px-4 py-2 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 rounded-lg text-xs font-bold disabled:opacity-50 transition-all hover:scale-105 active:scale-95"
+                      >
+                        Comment
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="flex gap-4 group">
+                      <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                        {comment.author.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-baseline gap-2 mb-1">
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">{comment.author}</span>
+                          <span className="text-[10px] font-medium text-slate-400">
+                            {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
+                          {comment.text}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {comments.length === 0 && (
+                    <div className="py-8 text-center border-2 border-dashed border-slate-50 dark:border-slate-900 rounded-2xl">
+                      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No activity logs</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Sidebar Column */}
+            <div className="w-full md:w-80 bg-slate-50/50 dark:bg-slate-900/30 p-8 space-y-8">
+              {/* Status Section */}
+              <div className="space-y-3">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Status</span>
+                <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl">
+                  <div className={`h-2 w-2 rounded-full ${initialData?.status === 'done' ? 'bg-emerald-500' :
+                    initialData?.status === 'in-progress' ? 'bg-blue-500' : 'bg-slate-400'
+                    }`} />
+                  <span className="text-xs font-bold capitalize text-slate-700 dark:text-slate-300">
+                    {initialData?.status?.replace('-', ' ') || 'Todo'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Metadata Fields Grid */}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6">
+                  {/* Project Field */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Target className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Project</span>
+                    </div>
+                    <div className="w-full bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300">
+                      {projects[projectId]?.title || projectList.find(p => p.id === projectId)?.title || "No Project"}
+                    </div>
+                  </div>
+
+                  {/* Assignee */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <User className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Assignee</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl group cursor-pointer hover:border-primary/30 transition-colors">
+                      <div className="h-5 w-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[9px] font-black">
+                        {initialData?.assignedTo?.charAt(0).toUpperCase() || <User className="h-3 w-3" />}
+                      </div>
+                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{initialData?.assignedTo || "Unassigned"}</span>
+                    </div>
+                  </div>
+
+                  {/* Priority */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <AlertCircle className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Priority</span>
+                    </div>
+                    <select
+                      value={priority}
+                      onChange={(e) => setPriority(e.target.value as any)}
+                      className={`w-full border rounded-xl px-3 py-2 text-xs font-bold outline-none transition-colors ${priority === 'high' ? 'bg-rose-50/50 border-rose-100 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900' :
+                        priority === 'medium' ? 'bg-amber-50/50 border-amber-100 text-amber-600 dark:bg-amber-950/20 dark:border-amber-900' :
+                          'bg-slate-50/50 border-slate-100 text-slate-500 dark:bg-slate-900/50 dark:border-slate-800'
+                        }`}
+                    >
+                      <option value="low">Low</option>
+                      <option value="medium">Medium</option>
+                      <option value="high">High</option>
+                    </select>
+                  </div>
+
+                  {/* Story Points */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Zap className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Story Points</span>
+                    </div>
+                    <input
+                      type="number"
+                      value={storyPoints}
+                      onChange={(e) => setStoryPoints(e.target.value)}
+                      placeholder="None"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none"
+                    />
+                  </div>
+
+                  {/* Due Date */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Calendar className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Due Date</span>
+                    </div>
+                    <input
+                      type="date"
+                      value={dueDate}
+                      onChange={(e) => setDueDate(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Sidebar Footer */}
+              <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
+                  <span>Created</span>
+                  <span>{initialData?.createdAt ? new Date(initialData.createdAt).toLocaleDateString() : 'Today'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Target(props: any) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
   );
 }

@@ -110,7 +110,7 @@ export default function SprintPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveTask = (data: any) => {
+  const handleSaveTask = (data: Partial<Task>) => {
     if (activeEditTask) {
       editTask(activeEditTask.id, data);
     }
@@ -376,7 +376,7 @@ export default function SprintPage() {
                              onClick={() => handleEditTask(task)}
                              className="group p-3.5 rounded-xl border border-border bg-card shadow-sm hover:border-primary/20 transition-all cursor-pointer"
                            >
-                              <div className="flex justify-between items-start gap-2 mb-3">
+                              <div className="flex justify-between items-start gap-2 mb-2">
                                  <h5 className="text-[11px] font-bold text-foreground leading-snug line-clamp-2">
                                     {task.title}
                                  </h5>
@@ -384,6 +384,11 @@ export default function SprintPage() {
                                     {task.storyPoints || 0}
                                  </div>
                               </div>
+                              {task.description && (
+                                <p className="text-[9px] text-muted-foreground line-clamp-1 mb-3">
+                                   {task.description.length > 50 ? `${task.description.substring(0, 50)}...` : task.description}
+                                </p>
+                              )}
                               <div className="flex items-center justify-between">
                                  <div className="h-5 w-5 rounded-md bg-secondary flex items-center justify-center text-[7px] font-bold border border-border">
                                     {task.assignedTo ? task.assignedTo.substring(0, 2).toUpperCase() : "U"}
@@ -428,6 +433,11 @@ export default function SprintPage() {
                           >
                              <td className="px-4 py-3">
                                 <p className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">{task.title}</p>
+                                {task.description && (
+                                  <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
+                                    {task.description.length > 70 ? `${task.description.substring(0, 70)}...` : task.description}
+                                  </p>
+                                )}
                              </td>
                              <td className="px-4 py-3">
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
