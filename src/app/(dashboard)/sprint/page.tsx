@@ -110,7 +110,7 @@ export default function SprintPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveTask = (data: Partial<Task>) => {
+  const handleSaveTask = (data: any) => {
     if (activeEditTask) {
       editTask(activeEditTask.id, data);
     }
