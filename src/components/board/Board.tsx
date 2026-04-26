@@ -87,6 +87,7 @@ export default function Board() {
         dueDate: data.dueDate,
         projectId: data.projectId as string,
         createdAt: new Date().toISOString(),
+        storyPoints: data.storyPoints,
         subtasks: data.subtasks,
         comments: data.comments,
       });

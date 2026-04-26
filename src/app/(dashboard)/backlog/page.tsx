@@ -35,28 +35,23 @@ export default function BacklogPage() {
   }, [fetchTasks, user?.uid]);
 
   // Handle Save (Create or Update)
-  const handleSaveTask = (data: {
-    title: string;
-    description?: string;
-    priority?: "low" | "medium" | "high";
-    dueDate?: string;
-    projectId?: string;
-  }) => {
+  const handleSaveTask = (data: Partial<Task>) => {
     if (activeEditTask) {
-      editTask(activeEditTask.id, {
-        ...data,
-        projectId: data.projectId
-      });
+      editTask(activeEditTask.id, data);
     } else {
+      // For new tasks, we ensure minimal required fields are set
       addTask({
         id: crypto.randomUUID(),
-        title: data.title,
+        title: data.title || "Untitled Task",
         description: data.description,
         status: "todo",
         priority: data.priority,
         dueDate: data.dueDate,
         projectId: data.projectId as string,
         createdAt: new Date().toISOString(),
+        storyPoints: data.storyPoints,
+        subtasks: data.subtasks,
+        comments: data.comments,
       });
     }
   };
