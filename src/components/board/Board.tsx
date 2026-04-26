@@ -71,7 +71,7 @@ export default function Board() {
     })
   );
 
-  const handleSaveTask = (data: Partial<Task>) => {
+  const handleSaveTask = (data: any) => {
     if (activeEditTask) {
       editTask(activeEditTask.id, {
         ...data,

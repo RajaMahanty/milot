@@ -30,7 +30,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 type Props = {
   open: boolean;
   onClose: () => void;
-  onSave: (data: Partial<Task>) => void;
+  onSave: (data: any) => void;
   initialData?: Task | null;
 };
 

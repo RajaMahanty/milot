@@ -35,7 +35,7 @@ export default function BacklogPage() {
   }, [fetchTasks, user?.uid]);
 
   // Handle Save (Create or Update)
-  const handleSaveTask = (data: Partial<Task>) => {
+  const handleSaveTask = (data: any) => {
     if (activeEditTask) {
       editTask(activeEditTask.id, data);
     } else {
