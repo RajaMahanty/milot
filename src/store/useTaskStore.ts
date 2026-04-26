@@ -2,7 +2,21 @@ import { create } from 'zustand';
 import { taskService } from '@/lib/taskService';
 import { useAuthStore } from './useAuthStore';
 
-export type Task = {
+export interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
+export interface Comment {
+  id: string;
+  author: string;
+  authorId: string;
+  text: string;
+  createdAt: string;
+}
+
+export interface Task {
   id: string;
   uid?: string;
   projectId: string;
@@ -13,8 +27,11 @@ export type Task = {
   sprintId?: string;
   assignedTo?: string;
   dueDate?: string;
+  storyPoints?: number;
   createdAt: string;
-};
+  subtasks?: SubTask[];
+  comments?: Comment[];
+}
 
 export type Column = {
   id: "todo" | "in-progress" | "done";
@@ -28,10 +45,11 @@ interface KanbanState {
   isLoading: boolean;
   error: string | null;
   fetchTasks: () => Promise<void>;
-  addTask: (task: Omit<Task, 'projectId' | 'uid'>) => Promise<void>;
+  addTask: (task: Omit<Task, 'uid'>) => Promise<void>;
   editTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   moveTask: (activeId: string, overId: string) => Promise<void>;
+  assignTasksToSprint: (taskIds: string[], sprintId: string | null) => Promise<void>;
   completeSprint: () => Promise<void>;
 }
 
@@ -85,11 +103,11 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     const { useProjectStore } = require('./useProjectStore');
     const { useSprintStore } = require('./useSprintStore');
 
-    const activeProjectId = useProjectStore.getState().activeProjectId;
+    const activeProjectId = task.projectId || useProjectStore.getState().activeProjectId;
     const activeSprintId = useSprintStore.getState().activeSprintId;
 
-    if (!user || !activeProjectId) {
-      alert("You must be logged in and have an active project to create a task.");
+    if (!user || (!activeProjectId || activeProjectId === "all")) {
+      alert("Please select a specific project for this task.");
       return;
     }
 
@@ -271,6 +289,27 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
         console.error("Failed to move task in Firebase:", err);
         // Could revert state here
       }
+    }
+  },
+
+  assignTasksToSprint: async (taskIds, sprintId) => {
+    set((state) => {
+      const newTasks = { ...state.tasks };
+      taskIds.forEach(id => {
+        if (newTasks[id]) {
+          newTasks[id] = { ...newTasks[id], sprintId: sprintId || undefined };
+        }
+      });
+      return { tasks: newTasks };
+    });
+
+    try {
+      await Promise.all(
+        taskIds.map(id => taskService.updateTask(id, { sprintId: sprintId as any }))
+      );
+    } catch (err: any) {
+      console.error(err);
+      alert("Failed to assign some tasks to sprint.");
     }
   },
 

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useKanbanStore, Task } from "@/store/useTaskStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useProjectStore } from "@/store/useProjectStore";
 import { TaskModal } from "@/components/task/TaskModal";
 import {
   MoreHorizontal,
@@ -18,6 +19,9 @@ import {
 export default function BacklogPage() {
   const { tasks, fetchTasks, addTask, editTask, deleteTask } = useKanbanStore();
   const { user } = useAuthStore();
+  const { projects, activeProjectId } = useProjectStore();
+
+  const showWorkspace = activeProjectId === "all" || !activeProjectId;
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showDone, setShowDone] = useState(false);
@@ -31,23 +35,23 @@ export default function BacklogPage() {
   }, [fetchTasks, user?.uid]);
 
   // Handle Save (Create or Update)
-  const handleSaveTask = (data: {
-    title: string;
-    description?: string;
-    priority?: "low" | "medium" | "high";
-    dueDate?: string;
-  }) => {
+  const handleSaveTask = (data: Partial<Task>) => {
     if (activeEditTask) {
       editTask(activeEditTask.id, data);
     } else {
+      // For new tasks, we ensure minimal required fields are set
       addTask({
         id: crypto.randomUUID(),
-        title: data.title,
+        title: data.title || "Untitled Task",
         description: data.description,
         status: "todo",
         priority: data.priority,
         dueDate: data.dueDate,
+        projectId: data.projectId as string,
         createdAt: new Date().toISOString(),
+        storyPoints: data.storyPoints,
+        subtasks: data.subtasks,
+        comments: data.comments,
       });
     }
   };
@@ -156,6 +160,7 @@ export default function BacklogPage() {
           <thead className="bg-secondary/40 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
             <tr>
               <th className="px-6 py-4">Title</th>
+              {showWorkspace && <th className="px-6 py-4">Workspace</th>}
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4">Priority</th>
               <th className="px-6 py-4">Assignee</th>
@@ -175,6 +180,13 @@ export default function BacklogPage() {
                       </div>
                     </div>
                   </td>
+                  {showWorkspace && (
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center rounded-lg border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-bold text-primary">
+                        {projects[task.projectId]?.title || "Unknown"}
+                      </span>
+                    </td>
+                  )}
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-[10px] font-bold capitalize ${statusColors[task.status]}`}>
                       {task.status.replace('-', ' ')}
@@ -200,24 +212,26 @@ export default function BacklogPage() {
                       <span className="text-[10px] font-medium text-foreground">{task.assignedTo || "Unassigned"}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleEditTask(task)}
-                        className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 inline-flex items-center justify-center transition-colors"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteTask(task.id)}
-                        className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex items-center justify-center transition-colors"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                  <td className="px-6 py-4 text-right w-[120px]">
+                    <div className="relative flex items-center justify-end h-8">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-0">
+                        <button
+                          onClick={() => handleEditTask(task)}
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 inline-flex items-center justify-center transition-colors shadow-sm bg-card border border-border cursor-pointer"
+                        >
+                          <Pencil size={14} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteTask(task.id)}
+                          className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex items-center justify-center transition-colors shadow-sm bg-card border border-border cursor-pointer"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                      <div className="group-hover:opacity-0 transition-opacity flex items-center justify-center h-8 w-8 text-muted-foreground">
+                        <MoreHorizontal size={16} />
+                      </div>
                     </div>
-                    <button className="h-8 w-8 rounded-lg text-muted-foreground inline-flex items-center justify-center group-hover:hidden transition-colors">
-                      <MoreHorizontal size={16} />
-                    </button>
                   </td>
                 </tr>
               ))

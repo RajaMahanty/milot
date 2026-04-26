@@ -11,6 +11,7 @@ interface SprintState {
   
   fetchSprints: () => Promise<void>;
   startSprint: (data: Omit<Sprint, 'id' | 'projectId' | 'uid' | 'status' | 'createdAt'>) => Promise<void>;
+  updateSprint: (id: string, updates: Partial<Sprint>) => Promise<void>;
   completeActiveSprint: () => Promise<void>;
 }
 
@@ -69,6 +70,20 @@ export const useSprintStore = create<SprintState>((set, get) => ({
       set((state) => ({
         sprints: [newSprint, ...state.sprints],
         activeSprintId: newSprint.id,
+        isLoading: false
+      }));
+    } catch (err: any) {
+      console.error(err);
+      set({ error: err.message, isLoading: false });
+    }
+  },
+
+  updateSprint: async (id, updates) => {
+    set({ isLoading: true });
+    try {
+      await sprintService.updateSprint(id, updates);
+      set((state) => ({
+        sprints: state.sprints.map(s => s.id === id ? { ...s, ...updates } : s),
         isLoading: false
       }));
     } catch (err: any) {

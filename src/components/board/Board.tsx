@@ -71,23 +71,25 @@ export default function Board() {
     })
   );
 
-  const handleSaveTask = (data: {
-    title: string;
-    description?: string;
-    priority?: "low" | "medium" | "high";
-    dueDate?: string;
-  }) => {
+  const handleSaveTask = (data: Partial<Task>) => {
     if (activeEditTask) {
-      editTask(activeEditTask.id, data);
+      editTask(activeEditTask.id, {
+        ...data,
+        projectId: data.projectId
+      });
     } else {
       addTask({
         id: crypto.randomUUID(),
-        title: data.title,
+        title: data.title || "",
         description: data.description,
         status: "todo",
         priority: data.priority,
         dueDate: data.dueDate,
+        projectId: data.projectId as string,
         createdAt: new Date().toISOString(),
+        storyPoints: data.storyPoints,
+        subtasks: data.subtasks,
+        comments: data.comments,
       });
     }
   };

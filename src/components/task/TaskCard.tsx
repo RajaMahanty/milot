@@ -4,6 +4,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Calendar, MessageSquare, Pencil, Trash2 } from "lucide-react";
 
 import { Task } from "@/store/useTaskStore";
+import { useProjectStore } from "@/store/useProjectStore";
 
 interface TaskCardProps {
   task: Task;
@@ -33,6 +34,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
   };
 
   const priorityStyle = task.priority ? priorityConfig[task.priority] : null;
+  const { projects, activeProjectId } = useProjectStore();
+  const project = projects[task.projectId];
+  const showProjectTag = activeProjectId === "all" || !activeProjectId;
 
   return (
     <div
@@ -40,43 +44,55 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
       style={style}
       {...attributes}
       {...listeners}
-      className={`group relative flex flex-col rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:shadow-card hover:border-primary/20 ${
+      className={`group relative flex flex-col h-[130px] rounded-2xl border border-border bg-card p-4 shadow-soft transition-all hover:shadow-card hover:border-primary/20 ${
         isDragging ? "z-50 opacity-0" : "opacity-100 cursor-grab active:cursor-grabbing"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="text-sm font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors">
+      <div className="flex items-start justify-between gap-3 mb-1">
+        <h3 
+          onClick={(e) => { e.stopPropagation(); onEdit?.(task); }}
+          className="text-sm font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors cursor-pointer pointer-events-auto"
+        >
           {task.title}
         </h3>
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {onEdit && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); onEdit(task); }}
-              className="h-6 w-6 flex items-center justify-center rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors pointer-events-auto"
-              title="Edit Task"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-            </button>
+        <div className="flex flex-col items-end gap-1.5">
+          {showProjectTag && (
+            <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[9px] font-bold ${project ? 'border-primary/20 bg-primary/5 text-primary' : 'border-rose-200 bg-rose-50 text-rose-600'}`}>
+              <span className="truncate max-w-[100px]">{project?.title || "No Workspace"}</span>
+            </div>
           )}
-          {onDelete && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
-              className="h-6 w-6 flex items-center justify-center rounded-md text-rose-600 hover:bg-rose-50 transition-colors pointer-events-auto"
-              title="Delete Task"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {onEdit && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+                className="h-6 w-6 flex items-center justify-center rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors pointer-events-auto cursor-pointer"
+                title="Edit Task"
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </button>
+            )}
+            {onDelete && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                className="h-6 w-6 flex items-center justify-center rounded-md text-rose-600 hover:bg-rose-50 transition-colors pointer-events-auto cursor-pointer"
+                title="Delete Task"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
-      {task.description && (
-        <p className="mt-2 line-clamp-2 text-xs font-medium text-muted-foreground leading-relaxed">
-          {task.description}
-        </p>
-      )}
+      <div className="flex-1 min-h-0 overflow-hidden">
+        {task.description && (
+          <p className="mt-1 line-clamp-2 text-[10px] font-medium text-muted-foreground leading-relaxed">
+            {task.description}
+          </p>
+        )}
+      </div>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-auto flex items-center justify-between pt-2">
         <div className="flex items-center gap-3">
           <div className="h-7 w-7 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold ring-1 ring-border shadow-sm">
             {task.assignedTo ? task.assignedTo.substring(0, 2).toUpperCase() : "U"}
