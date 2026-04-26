@@ -5,7 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Task } from "@/store/useTaskStore";
+import { useProjectStore } from "@/store/useProjectStore";
 
 type Props = {
   open: boolean;
@@ -15,6 +15,8 @@ type Props = {
     description?: string;
     priority?: "low" | "medium" | "high";
     dueDate?: string;
+    projectId?: string;
+    storyPoints?: number;
   }) => void;
   initialData?: Task | null;
 };
@@ -24,6 +26,11 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [description, setDescription] = useState("");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState("");
+  const [projectId, setProjectId] = useState<string>("");
+  const [storyPoints, setStoryPoints] = useState<string>("");
+
+  const { projects, activeProjectId } = useProjectStore();
+  const projectList = Object.values(projects);
 
   const isEditMode = !!initialData;
 
@@ -35,25 +42,32 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setDescription(initialData.description || "");
         setPriority(initialData.priority || "medium");
         setDueDate(initialData.dueDate || "");
+        setProjectId(initialData.projectId);
+        setStoryPoints(initialData.storyPoints?.toString() || "");
       } else {
         setTitle("");
         setDescription("");
         setPriority("medium");
         setDueDate("");
+        setStoryPoints("");
+        // Set default project if active project is "all", otherwise use active project
+        setProjectId(activeProjectId && activeProjectId !== "all" ? activeProjectId : projectList[0]?.id || "");
       }
     }
-  }, [open, initialData]);
+  }, [open, initialData, activeProjectId, projectList]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!title.trim()) return;
+    if (!title.trim() || !projectId) return;
 
     onSave({
       title: title.trim(),
       description: description.trim() || undefined,
       priority,
       dueDate: dueDate || undefined,
+      projectId: projectId,
+      storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
     });
 
     onClose();
@@ -61,7 +75,11 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      <DialogContent className="sm:max-w-md" aria-describedby={undefined}>
+      <DialogContent 
+        className="sm:max-w-md" 
+        aria-describedby={undefined}
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>{isEditMode ? "Edit Task" : "Create New Task"}</DialogTitle>
         </DialogHeader>
@@ -97,6 +115,29 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
           </div>
 
           <div className="space-y-2">
+            <label htmlFor="project" className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              Workspace <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="project"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+              className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
+              required
+            >
+              <option value="" disabled>Select a workspace</option>
+              {projectList.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
+              ))}
+            </select>
+            {projectList.length === 0 && (
+              <p className="text-[10px] text-rose-500 font-medium">Please create a workspace first.</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <label htmlFor="priority" className="text-sm font-medium text-gray-700 dark:text-gray-200">
               Priority
             </label>
@@ -121,6 +162,23 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
+              className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="storyPoints" className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              Story Points
+            </label>
+            <input
+              id="storyPoints"
+              type="number"
+              min="1"
+              max="53"
+              step="1"
+              value={storyPoints}
+              onChange={(e) => setStoryPoints(e.target.value)}
+              placeholder="e.g. 5"
               className="w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-700"
             />
           </div>

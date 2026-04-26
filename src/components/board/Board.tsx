@@ -76,9 +76,13 @@ export default function Board() {
     description?: string;
     priority?: "low" | "medium" | "high";
     dueDate?: string;
+    projectId?: string;
   }) => {
     if (activeEditTask) {
-      editTask(activeEditTask.id, data);
+      editTask(activeEditTask.id, {
+        ...data,
+        projectId: data.projectId
+      });
     } else {
       addTask({
         id: crypto.randomUUID(),
@@ -87,6 +91,7 @@ export default function Board() {
         status: "todo",
         priority: data.priority,
         dueDate: data.dueDate,
+        projectId: data.projectId as string,
         createdAt: new Date().toISOString(),
       });
     }

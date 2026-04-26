@@ -13,13 +13,14 @@ interface ProjectState {
   
   fetchProjects: () => Promise<void>;
   createProject: (project: Omit<Project, 'uid' | 'createdAt' | 'id'>) => Promise<void>;
-  setActiveProject: (projectId: string) => void;
+  setActiveProject: (projectId: string | null) => void;
+  updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
   projects: {},
-  activeProjectId: null,
+  activeProjectId: "all",
   isLoading: false,
   error: null,
 
@@ -37,12 +38,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const projectIds = Object.keys(dbProjects);
       const activeId = get().activeProjectId;
       
-      // Auto-set active project if none is active and projects exist
-      let newActiveId = activeId;
-      if ((!activeId || !dbProjects[activeId]) && projectIds.length > 0) {
-        newActiveId = projectIds[0];
-      } else if (projectIds.length === 0) {
-        newActiveId = null;
+      // Maintain "all" or current active project
+      let newActiveId = activeId || "all";
+      
+      // If active project was deleted, go back to "all"
+      if (activeId && activeId !== "all" && !dbProjects[activeId]) {
+        newActiveId = "all";
       }
 
       set({ projects: dbProjects, isLoading: false, activeProjectId: newActiveId });
@@ -98,7 +99,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
   },
 
-  setActiveProject: (projectId: string) => {
+  setActiveProject: (projectId: string | null) => {
     const currentActiveId = get().activeProjectId;
     if (currentActiveId === projectId) return;
 
@@ -107,6 +108,22 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     const { useSprintStore } = require('./useSprintStore');
     useKanbanStore.getState().fetchTasks();
     useSprintStore.getState().fetchSprints();
+  },
+
+  updateProject: async (projectId, updates) => {
+    set((state) => ({
+      projects: {
+        ...state.projects,
+        [projectId]: { ...state.projects[projectId], ...updates }
+      }
+    }));
+
+    try {
+      await projectService.updateProject(projectId, updates);
+    } catch (err: any) {
+      console.error("Failed to update project:", err);
+      set({ error: err.message });
+    }
   },
 
   deleteProject: async (projectId: string) => {
