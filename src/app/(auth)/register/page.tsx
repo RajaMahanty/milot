@@ -32,7 +32,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      console.log("Current API Key being sent:", process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
       

@@ -2,6 +2,8 @@ import { create } from 'zustand';
 import { sprintService, Sprint } from '@/lib/sprintService';
 import { useAuthStore } from './useAuthStore';
 import { useProjectStore } from './useProjectStore';
+import { toast } from './useToastStore';
+
 
 interface SprintState {
   sprints: Sprint[];
@@ -51,9 +53,10 @@ export const useSprintStore = create<SprintState>((set, get) => ({
 
     // Check if there is already an active sprint
     if (get().activeSprintId) {
-      alert("There is already an active sprint for this project.");
+      toast.warning("An active sprint already exists.");
       return;
     }
+
 
     const newSprint: Sprint = {
       ...data,

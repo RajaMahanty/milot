@@ -5,6 +5,10 @@ import { useKanbanStore, Task } from "@/store/useTaskStore";
 import { useAuthStore } from "@/store/useAuthStore";
 import { useProjectStore } from "@/store/useProjectStore";
 import { TaskModal } from "@/components/task/TaskModal";
+import { toast } from "@/store/useToastStore";
+import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
+
+
 import {
   MoreHorizontal,
   ArrowUp,
@@ -13,7 +17,11 @@ import {
   Search,
   Plus,
   Pencil,
-  Trash2
+  Trash2,
+  Filter,
+  SlidersHorizontal,
+  UserPlus,
+  ChevronDown
 } from "lucide-react";
 
 export default function BacklogPage() {
@@ -28,6 +36,7 @@ export default function BacklogPage() {
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeEditTask, setActiveEditTask] = useState<Task | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.uid) {
@@ -68,8 +77,14 @@ export default function BacklogPage() {
   };
 
   const handleDeleteTask = (taskId: string) => {
-    if (window.confirm("CONFIRMATION REQUIRED: Are you sure you want to PERMANENTLY delete this task? This action cannot be undone.")) {
-      deleteTask(taskId);
+    setDeleteTaskId(taskId);
+  };
+
+  const confirmDeleteTask = () => {
+    if (deleteTaskId) {
+      deleteTask(deleteTaskId);
+      toast.success("Task deleted permanently");
+      setDeleteTaskId(null);
     }
   };
 
@@ -194,7 +209,10 @@ export default function BacklogPage() {
             {filteredTasks.length > 0 ? (
               filteredTasks.map((task) => (
                 <tr key={task.id} className="hover:bg-secondary/30 transition-colors group">
-                  <td className="px-6 py-4 max-w-[250px]">
+                  <td 
+                    onClick={() => handleEditTask(task)}
+                    className="px-6 py-4 max-w-[250px] cursor-pointer"
+                  >
                     <div className="flex items-start gap-3">
                       <div className="h-2 w-2 rounded-full bg-primary/30 mt-1.5 flex-shrink-0" />
                       <div className="overflow-hidden">
@@ -203,6 +221,7 @@ export default function BacklogPage() {
                       </div>
                     </div>
                   </td>
+
                   {showWorkspace && (
                     <td className="px-6 py-4">
                       <span className="inline-flex items-center rounded-lg border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-bold text-primary">
@@ -287,6 +306,14 @@ export default function BacklogPage() {
         }}
         onSave={handleSaveTask}
         initialData={activeEditTask}
+      />
+
+      <ConfirmDelete 
+        open={!!deleteTaskId}
+        onClose={() => setDeleteTaskId(null)}
+        onConfirm={confirmDeleteTask}
+        title="Delete Task?"
+        description="Are you sure you want to permanently delete this task from your backlog?"
       />
     </div>
   );

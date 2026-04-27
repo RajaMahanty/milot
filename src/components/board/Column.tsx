@@ -11,6 +11,8 @@ export type ColumnType = {
 };
 
 import { Task } from "@/store/useTaskStore";
+import { toast } from "@/store/useToastStore";
+
 
 type Props = {
   column: ColumnType;
@@ -47,8 +49,9 @@ export default function Column({ column, tasks, onEdit, onDelete }: Props) {
           </span>
         </div>
         <button 
-          onClick={() => alert(`Column settings for "${column.title}" (Rename, Clear, Delete) coming soon!`)}
+          onClick={() => toast.info(`Settings for "${column.title}" are coming soon!`)}
           className="h-8 w-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground transition-colors"
+
         >
           <MoreHorizontal className="h-4 w-4" />
         </button>

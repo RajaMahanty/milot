@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Search, Bell, ChevronDown, LogOut } from "lucide-react";
+import { Search, Bell, ChevronDown, LogOut, Menu } from "lucide-react";
+
 import { useAuthStore } from "@/store/useAuthStore";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
@@ -9,7 +10,8 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { useProjectStore } from "@/store/useProjectStore";
 
-export function TopBar() {
+export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
+
   const user = useAuthStore((state) => state.user);
   const { projects, activeProjectId, setActiveProject } = useProjectStore();
   const router = useRouter();
@@ -30,8 +32,17 @@ export function TopBar() {
   const activeProject = activeProjectId ? projects[activeProjectId] : null;
 
   return (
-    <header className="fixed top-0 left-0 lg:left-64 right-0 z-10 h-16 border-b border-border bg-background px-6 flex items-center justify-between">
-      <div className="flex items-center gap-6">
+    <header className="fixed top-0 left-0 lg:left-64 right-0 z-10 h-16 border-b border-border bg-background px-4 lg:px-6 flex items-center justify-between">
+      <div className="flex items-center gap-3 lg:gap-6">
+        <button 
+          onClick={onMenuClick}
+          className="lg:hidden h-9 w-9 rounded-xl flex items-center justify-center hover:bg-secondary text-foreground transition-all active:scale-95 border border-border"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        
+        <div className="flex items-center gap-6">
+
         <div className="relative group">
           <div className="flex items-center gap-2 cursor-pointer hover:bg-secondary rounded-lg px-2 py-1 transition-colors">
             <span className="text-sm font-semibold text-foreground italic px-1 bg-primary/10 text-primary rounded">TM</span>
@@ -95,8 +106,11 @@ export function TopBar() {
           />
         </div>
       </div>
+    </div>
 
-      <div className="flex items-center gap-4">
+    <div className="flex items-center gap-4">
+
+
         <button className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full hover:bg-secondary transition-colors relative">
           <Bell className="h-5 w-5 text-muted-foreground" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full border-2 border-background bg-destructive"></span>

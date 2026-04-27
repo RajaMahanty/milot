@@ -4,6 +4,10 @@ import React, { useState } from "react";
 import { FolderKanban, Plus, MoreVertical, LayoutGrid, Pencil, Trash2 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useRouter } from "next/navigation";
+import { toast } from "@/store/useToastStore";
+import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
+
+
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 export default function ProjectsPage() {
@@ -15,6 +19,7 @@ export default function ProjectsPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,11 +57,19 @@ export default function ProjectsPage() {
 
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to completely delete this project?")) {
-       await deleteProject(id);
-    }
+    setDeleteProjectId(id);
     setOpenDropdown(null);
   };
+
+  const confirmDeleteProject = async () => {
+    if (deleteProjectId) {
+      await deleteProject(deleteProjectId);
+      toast.success("Workspace deleted");
+      setDeleteProjectId(null);
+    }
+  };
+
+
 
   const toggleDropdown = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();

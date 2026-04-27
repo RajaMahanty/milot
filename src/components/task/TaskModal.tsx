@@ -6,7 +6,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
+
 import { useProjectStore } from "@/store/useProjectStore";
 import { Task, SubTask, Comment } from "@/store/useTaskStore";
 import {
@@ -26,6 +28,8 @@ import {
   MessageSquare
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { toast } from "@/store/useToastStore";
+
 
 type Props = {
   open: boolean;
@@ -47,7 +51,9 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isAIProcessing, setIsAIProcessing] = useState(false);
   const hasLoadedInitial = useRef(false);
+
   const currentTaskId = useRef<string | null>(null);
 
   const { projects, activeProjectId } = useProjectStore();
@@ -139,7 +145,9 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     });
 
     onClose();
+    toast.success("Task saved successfully!");
   };
+
 
   const addSubtask = () => {
     if (!newSubtask.trim()) return;
@@ -157,10 +165,10 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   };
 
   const removeSubtask = (id: string) => {
-    if (window.confirm("Are you sure you want to remove this subtask?")) {
-      setSubtasks(subtasks.filter(s => s.id !== id));
-    }
+    setSubtasks(subtasks.filter(s => s.id !== id));
+    toast.info("Subtask removed");
   };
+
 
   const editSubtask = (id: string, title: string) => {
     setSubtasks(subtasks.map(s => s.id === id ? { ...s, title } : s));
@@ -177,6 +185,31 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     };
     setComments([comm, ...comments]);
     setNewComment("");
+  };
+
+  const generateAISubtasks = async () => {
+    if (!title.trim()) return;
+    setIsAIProcessing(true);
+    try {
+      const response = await fetch("/api/ai/subtasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description }),
+      });
+      const data = await response.json();
+      if (data.substeps && Array.isArray(data.substeps)) {
+        const newSubs = data.substeps.map((text: string) => ({
+          id: crypto.randomUUID(),
+          title: text,
+          completed: false
+        }));
+        setSubtasks([...subtasks, ...newSubs]);
+      }
+    } catch (error) {
+      console.error("AI Generation failed", error);
+    } finally {
+      setIsAIProcessing(false);
+    }
   };
 
   return (
@@ -196,8 +229,14 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                 {initialData?.id ? `TASK-${initialData.id.substring(0, 8).toUpperCase()}` : "NEW TASK"}
               </span>
               <ChevronRight className="h-3 w-3 text-slate-300" />
-              <DialogTitle className="text-sm font-bold text-slate-900 dark:text-white">Issue Details</DialogTitle>
+              <div className="flex flex-col">
+                <DialogTitle className="text-sm font-bold text-slate-900 dark:text-white">Issue Details</DialogTitle>
+                <DialogDescription className="sr-only">
+                  View and manage the details, subtasks, and comments for this task.
+                </DialogDescription>
+              </div>
             </div>
+
           </div>
           <div className="flex items-center gap-2">
             {isSaving && (
@@ -264,10 +303,23 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="flex items-center gap-2 text-slate-500">
                     <CheckCircle2 className="h-4 w-4" />
                     <span className="text-xs font-bold uppercase tracking-wider">Subtasks</span>
+                    <button
+                      onClick={generateAISubtasks}
+                      disabled={isAIProcessing || !title.trim()}
+                      className={`ml-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter transition-all shadow-sm ${
+                        isAIProcessing 
+                        ? 'bg-primary/20 text-primary animate-pulse cursor-wait' 
+                        : 'bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95'
+                      } disabled:opacity-50 disabled:pointer-events-none`}
+                    >
+                      <Zap className={`h-2.5 w-2.5 ${isAIProcessing ? 'animate-bounce' : ''}`} />
+                      {isAIProcessing ? 'Thinking...' : 'AI Break down'}
+                    </button>
                   </div>
                   <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
                     {subtasks.filter(s => s.completed).length} of {subtasks.length}
                   </span>
+
                 </div>
 
                 {/* Progress Bar */}
@@ -412,8 +464,10 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                     <select
                       value={projectId}
                       onChange={(e) => setProjectId(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                      disabled={isEditMode}
+                      className={`w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none ${isEditMode ? 'opacity-50 cursor-not-allowed bg-slate-50' : ''}`}
                     >
+
                       <option value="" disabled>Select Project</option>
                       {projectList.map(p => (
                         <option key={p.id} value={p.id}>{p.title}</option>
