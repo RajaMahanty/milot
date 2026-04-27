@@ -25,6 +25,7 @@ export default function BacklogPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [showDone, setShowDone] = useState(false);
+  const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeEditTask, setActiveEditTask] = useState<Task | null>(null);
 
@@ -67,7 +68,7 @@ export default function BacklogPage() {
   };
 
   const handleDeleteTask = (taskId: string) => {
-    if (window.confirm("Are you sure you want to delete this task? This cannot be undone.")) {
+    if (window.confirm("CONFIRMATION REQUIRED: Are you sure you want to PERMANENTLY delete this task? This action cannot be undone.")) {
       deleteTask(taskId);
     }
   };
@@ -87,8 +88,12 @@ export default function BacklogPage() {
 
   // Filter Tasks
   const filteredTasks = Object.values(tasks).filter(task => {
-    // Ignore archived tasks completely
-    if (task.status === "archived") return false;
+    // Tab filter
+    if (activeTab === "active") {
+      if (task.status === "archived") return false;
+    } else {
+      if (task.status !== "archived") return false;
+    }
 
     // Search filter
     if (searchQuery.trim()) {
@@ -127,6 +132,24 @@ export default function BacklogPage() {
         >
           <Plus className="h-5 w-5" />
           Create Task
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex items-center gap-1 border-b border-border pb-px">
+        <button
+          onClick={() => setActiveTab("active")}
+          className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === 'active' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          Active Tasks
+          {activeTab === 'active' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
+        </button>
+        <button
+          onClick={() => setActiveTab("archived")}
+          className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === 'archived' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+        >
+          Archived Tasks
+          {activeTab === 'archived' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
         </button>
       </div>
 
@@ -214,7 +237,7 @@ export default function BacklogPage() {
                   </td>
                   <td className="px-6 py-4 text-right w-[120px]">
                     <div className="relative flex items-center justify-end h-8">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-0">
+                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity absolute right-0 z-10">
                         <button
                           onClick={() => handleEditTask(task)}
                           className="h-8 w-8 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 inline-flex items-center justify-center transition-colors shadow-sm bg-card border border-border cursor-pointer"
@@ -222,13 +245,13 @@ export default function BacklogPage() {
                           <Pencil size={14} />
                         </button>
                         <button
-                          onClick={() => handleDeleteTask(task.id)}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
                           className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex items-center justify-center transition-colors shadow-sm bg-card border border-border cursor-pointer"
                         >
                           <Trash2 size={14} />
                         </button>
                       </div>
-                      <div className="group-hover:opacity-0 transition-opacity flex items-center justify-center h-8 w-8 text-muted-foreground">
+                      <div className="group-hover:hidden flex items-center justify-center h-8 w-8 text-muted-foreground">
                         <MoreHorizontal size={16} />
                       </div>
                     </div>

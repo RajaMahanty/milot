@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -46,15 +46,25 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [newSubtask, setNewSubtask] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const hasLoadedInitial = useRef(false);
+  const currentTaskId = useRef<string | null>(null);
 
   const { projects, activeProjectId } = useProjectStore();
   const { user } = useAuthStore();
-  const projectList = Object.values(projects);
+  const projectList = useMemo(() => Object.values(projects), [projects]);
 
   const isEditMode = !!initialData;
 
   useEffect(() => {
-    if (open) {
+    if (!open) {
+      hasLoadedInitial.current = false;
+      currentTaskId.current = null;
+      return;
+    }
+
+    // Only load if we haven't loaded for this specific task opening
+    if (open && (!hasLoadedInitial.current || (initialData?.id !== currentTaskId.current))) {
       if (initialData) {
         setTitle(initialData.title);
         setDescription(initialData.description || "");
@@ -64,6 +74,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setStoryPoints(initialData.storyPoints?.toString() || "");
         setSubtasks(initialData.subtasks || []);
         setComments(initialData.comments || []);
+        currentTaskId.current = initialData.id;
       } else {
         setTitle("");
         setDescription("");
@@ -73,9 +84,45 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setSubtasks([]);
         setComments([]);
         setProjectId(activeProjectId && activeProjectId !== "all" ? activeProjectId : projectList[0]?.id || "");
+        currentTaskId.current = "new";
       }
+      
+      // Delay enabling autosave to allow states to settle and avoid loop
+      const timer = setTimeout(() => {
+        hasLoadedInitial.current = true;
+      }, 500);
+      return () => clearTimeout(timer);
     }
-  }, [open, initialData, activeProjectId, projectList]);
+  }, [open, initialData?.id, activeProjectId, projectList]);
+
+  // Debounced Autosave
+  useEffect(() => {
+    // CRITICAL: Only autosave if we've fully loaded initial data and it's an edit
+    if (!isEditMode || !hasLoadedInitial.current || !open) return;
+
+    const saveChanges = async () => {
+      if (!title.trim() || !projectId) return;
+      
+      setIsSaving(true);
+      try {
+        await onSave({
+          title: title.trim(),
+          description: description.trim() || undefined,
+          priority,
+          dueDate: dueDate || undefined,
+          projectId: projectId,
+          storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
+          subtasks,
+          comments,
+        });
+      } finally {
+        setTimeout(() => setIsSaving(false), 500);
+      }
+    };
+
+    const timeout = setTimeout(saveChanges, 500);
+    return () => clearTimeout(timeout);
+  }, [title, description, priority, dueDate, projectId, storyPoints, subtasks, comments]);
 
   const handleSave = () => {
     if (!title.trim() || !projectId) return;
@@ -110,7 +157,13 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   };
 
   const removeSubtask = (id: string) => {
-    setSubtasks(subtasks.filter(s => s.id !== id));
+    if (window.confirm("Are you sure you want to remove this subtask?")) {
+      setSubtasks(subtasks.filter(s => s.id !== id));
+    }
+  };
+
+  const editSubtask = (id: string, title: string) => {
+    setSubtasks(subtasks.map(s => s.id === id ? { ...s, title } : s));
   };
 
   const addComment = () => {
@@ -147,12 +200,19 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={handleSave}
-              className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2"
-            >
-              {isEditMode ? "Save Changes" : "Create Task"}
-            </button>
+            {isSaving && (
+              <span className="text-[10px] font-bold text-emerald-500 animate-pulse bg-emerald-50 px-2 py-1 rounded-full border border-emerald-100 uppercase tracking-tighter">
+                Saving changes...
+              </span>
+            )}
+            {!isEditMode ? (
+              <button
+                onClick={handleSave}
+                className="px-4 py-2 bg-primary text-white rounded-lg text-xs font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all flex items-center gap-2"
+              >
+                Create Task
+              </button>
+            ) : null}
             <button
               onClick={onClose}
               className="h-8 w-8 rounded-lg flex items-center justify-center text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
@@ -229,9 +289,12 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       >
                         {st.completed ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
                       </button>
-                      <span className={`flex-1 text-sm font-medium ${st.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                        {st.title}
-                      </span>
+                      <input
+                        type="text"
+                        value={st.title}
+                        onChange={(e) => editSubtask(st.id, e.target.value)}
+                        className={`flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 p-0 ${st.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}
+                      />
                       <button
                         onClick={() => removeSubtask(st.id)}
                         className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-500 transition-all p-1"
@@ -346,9 +409,16 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       <Target className="h-3.5 w-3.5" />
                       <span className="text-[10px] font-bold uppercase tracking-wider">Project</span>
                     </div>
-                    <div className="w-full bg-slate-50/50 dark:bg-slate-900/50 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300">
-                      {projects[projectId]?.title || projectList.find(p => p.id === projectId)?.title || "No Project"}
-                    </div>
+                    <select
+                      value={projectId}
+                      onChange={(e) => setProjectId(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                    >
+                      <option value="" disabled>Select Project</option>
+                      {projectList.map(p => (
+                        <option key={p.id} value={p.id}>{p.title}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Assignee */}
@@ -409,6 +479,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                     <input
                       type="date"
                       value={dueDate}
+                      min={new Date().toISOString().split('T')[0]}
                       onChange={(e) => setDueDate(e.target.value)}
                       className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none"
                     />

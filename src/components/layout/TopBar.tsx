@@ -60,19 +60,21 @@ export function TopBar() {
 
               <div className="h-[1px] w-full bg-border my-1" />
 
-              {Object.values(projects).length > 0 ? (
-                Object.values(projects).map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => setActiveProject(p.id)}
-                    className={`w-full text-left flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors ${p.id === activeProjectId ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-secondary'}`}
-                  >
-                    <span className="truncate pl-4">{p.title}</span>
-                  </button>
-                ))
-              ) : (
-                <div className="px-2 py-2 text-xs text-muted-foreground">No workspaces found.</div>
-              )}
+              <div className="max-h-60 overflow-y-auto no-scrollbar">
+                {Object.values(projects).length > 0 ? (
+                  Object.values(projects).map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => setActiveProject(p.id)}
+                      className={`w-full text-left flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors ${p.id === activeProjectId ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-secondary'}`}
+                    >
+                      <span className="truncate pl-4">{p.title}</span>
+                    </button>
+                  ))
+                ) : (
+                  <div className="px-2 py-2 text-xs text-muted-foreground">No workspaces found.</div>
+                )}
+              </div>
               <div className="h-[1px] w-full bg-border my-1" />
               <button
                 onClick={() => router.push("/projects")}

@@ -105,7 +105,7 @@ export default function Board() {
   };
 
   const handleDeleteTask = (taskId: string) => {
-    if (window.confirm("Are you sure you want to delete this task? This cannot be undone.")) {
+    if (window.confirm("CONFIRMATION REQUIRED: Are you sure you want to PERMANENTLY delete this task? This action cannot be undone.")) {
       deleteTask(taskId);
     }
   };

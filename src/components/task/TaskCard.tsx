@@ -65,6 +65,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
             {onEdit && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+                onPointerDown={(e) => e.stopPropagation()}
                 className="h-6 w-6 flex items-center justify-center rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors pointer-events-auto cursor-pointer"
                 title="Edit Task"
               >
@@ -74,6 +75,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
             {onDelete && (
               <button 
                 onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
+                onPointerDown={(e) => e.stopPropagation()}
                 className="h-6 w-6 flex items-center justify-center rounded-md text-rose-600 hover:bg-rose-50 transition-colors pointer-events-auto cursor-pointer"
                 title="Delete Task"
               >
@@ -109,7 +111,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
         <div className="flex items-center gap-3 text-muted-foreground">
           <div className="flex items-center gap-1 text-[10px] font-medium">
             <MessageSquare className="h-3 w-3" />
-            <span>2</span>
+            <span>{task.comments?.length || 0}</span>
           </div>
           {task.dueDate && (
             <div className="flex items-center gap-1 text-[10px] font-medium">
