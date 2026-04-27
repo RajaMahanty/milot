@@ -29,7 +29,8 @@ import { BacklogTaskPicker } from "@/components/sprint/BacklogTaskPicker";
 import { SprintSummaryModal } from "@/components/sprint/SprintSummaryModal";
 
 export default function SprintPage() {
-  const { tasks, fetchTasks, editTask, assignTasksToSprint } = useKanbanStore();
+  const { tasks, fetchTasks, editTask, assignTasksToSprint, searchQuery } = useKanbanStore();
+
   const { user } = useAuthStore();
   const {
     sprints,
@@ -65,13 +66,22 @@ export default function SprintPage() {
 
   const allTasks = Object.values(tasks);
 
-  const sprintTasks = useMemo(
-    () =>
-      activeSprintId
-        ? allTasks.filter((t) => t.sprintId === activeSprintId)
-        : [],
-    [allTasks, activeSprintId],
-  );
+  const sprintTasks = useMemo(() => {
+    let filtered = activeSprintId
+      ? allTasks.filter((t) => t.sprintId === activeSprintId)
+      : [];
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (t) =>
+          t.title.toLowerCase().includes(q) ||
+          (t.description && t.description.toLowerCase().includes(q)),
+      );
+    }
+    return filtered;
+  }, [allTasks, activeSprintId, searchQuery]);
+
 
   // Stats Logic
   const stats = useMemo(() => {

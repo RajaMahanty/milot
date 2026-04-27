@@ -59,7 +59,8 @@ export default function Board() {
 
   // Filter States
   const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+
+
   const [filterPriority, setFilterPriority] = useState<"high" | "medium" | "low" | null>(null);
   const [filterAssignee, setFilterAssignee] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
@@ -67,7 +68,8 @@ export default function Board() {
 
 
 
-  const { columns, tasks, addTask, editTask, deleteTask, moveTask, fetchTasks, isLoading } = useKanbanStore();
+  const { columns, tasks, addTask, editTask, deleteTask, moveTask, fetchTasks, isLoading, searchQuery } = useKanbanStore();
+
 
   const { user } = useAuthStore();
 

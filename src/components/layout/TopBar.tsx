@@ -1,7 +1,8 @@
 "use client";
 
 import React from "react";
-import { Search, Bell, ChevronDown, LogOut, Menu } from "lucide-react";
+import { Search, Bell, ChevronDown, ChevronRight, LogOut, Menu } from "lucide-react";
+
 
 import { useAuthStore } from "@/store/useAuthStore";
 import { auth } from "@/lib/firebase";
@@ -9,13 +10,17 @@ import { signOut } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { useProjectStore } from "@/store/useProjectStore";
+import { useKanbanStore } from "@/store/useTaskStore";
+
 
 export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const [workspaceOpen, setWorkspaceOpen] = React.useState(false);
 
 
   const user = useAuthStore((state) => state.user);
+  const { searchQuery, setSearchQuery, tasks } = useKanbanStore();
   const { projects, activeProjectId, setActiveProject } = useProjectStore();
+
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -113,13 +118,83 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
 
         
         <div className="hidden md:flex relative w-96 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
-          <input
-            type="text"
-            placeholder="Search tasks, docs..."
-            className="w-full rounded-2xl bg-secondary/70 border-none px-10 py-1.5 text-sm transition-all focus:bg-background focus:ring-2 focus:ring-primary/20 focus:outline-none"
-          />
+          <form 
+            onSubmit={(e) => e.preventDefault()}
+            className="w-full relative"
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />
+            <input
+              type="text"
+              placeholder="Search across all workspaces..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchQuery(searchQuery)} // Ensure results show on focus if query exists
+              className="w-full rounded-2xl bg-secondary/70 border-none px-10 py-1.5 text-sm transition-all focus:bg-background focus:ring-2 focus:ring-primary/20 focus:outline-none"
+            />
+          </form>
+
+          {/* Search Results Dropdown */}
+          {searchQuery.trim().length >= 2 && (
+            <div className="absolute top-full left-0 right-0 mt-1 max-h-[400px] overflow-y-auto rounded-2xl border border-border bg-card shadow-elevated z-50 p-2 animate-in fade-in slide-in-from-top-2">
+              <div className="px-2 py-1.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest border-b border-border mb-1">
+                Found Results
+              </div>
+              
+              {Object.values(tasks).filter(t => 
+                t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))
+              ).length > 0 ? (
+                Object.values(tasks)
+                  .filter(t => 
+                    t.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                    (t.description && t.description.toLowerCase().includes(searchQuery.toLowerCase()))
+                  )
+                  .slice(0, 8) // Limit to top 8
+                  .map(task => (
+                    <button
+                      key={task.id}
+                      onClick={() => {
+                        // Navigate to board or open modal? 
+                        // For now we'll set the active project and go to board
+                        if (task.projectId) {
+                           setActiveProject(task.projectId);
+                           router.push("/board");
+                        }
+                        setSearchQuery("");
+                      }}
+                      className="w-full text-left p-3 hover:bg-secondary rounded-xl transition-all group border border-transparent hover:border-border"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">{task.title}</p>
+                          <p className="text-[10px] text-muted-foreground line-clamp-1 mt-0.5">
+                            {projects[task.projectId]?.title || "Unknown Workspace"} • {task.status.toUpperCase()}
+                          </p>
+                        </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                      </div>
+                    </button>
+                  ))
+              ) : (
+                <div className="p-4 text-center">
+                  <p className="text-xs text-muted-foreground italic">No tasks matching "{searchQuery}"</p>
+                </div>
+              )}
+
+              <div className="mt-2 border-t border-border pt-2">
+                <button
+                   onClick={() => { router.push("/backlog"); setSearchQuery(""); }}
+                   className="w-full py-2 text-[10px] font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors text-center uppercase tracking-wider"
+                >
+                  View All in Backlog
+                </button>
+              </div>
+            </div>
+          )}
         </div>
+
+
+
       </div>
     </div>
 

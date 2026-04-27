@@ -25,13 +25,13 @@ import {
 } from "lucide-react";
 
 export default function BacklogPage() {
-  const { tasks, fetchTasks, addTask, editTask, deleteTask } = useKanbanStore();
+  const { tasks, fetchTasks, addTask, editTask, deleteTask, searchQuery, setSearchQuery } = useKanbanStore();
   const { user } = useAuthStore();
   const { projects, activeProjectId } = useProjectStore();
 
   const showWorkspace = activeProjectId === "all" || !activeProjectId;
 
-  const [searchQuery, setSearchQuery] = useState("");
+
   const [showDone, setShowDone] = useState(false);
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const [isModalOpen, setIsModalOpen] = useState(false);

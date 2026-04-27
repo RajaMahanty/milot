@@ -52,8 +52,11 @@ interface KanbanState {
   deleteTask: (taskId: string) => Promise<void>;
   moveTask: (activeId: string, overId: string) => Promise<void>;
   assignTasksToSprint: (taskIds: string[], sprintId: string | null) => Promise<void>;
+  searchQuery: string;
+  setSearchQuery: (query: string) => void;
   completeSprint: () => Promise<void>;
 }
+
 
 const defaultColumns: Record<string, Column> = {
   "todo": { id: "todo", title: "To Do", taskIds: [] },
@@ -66,6 +69,8 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   columns: defaultColumns,
   isLoading: false,
   error: null,
+  searchQuery: '',
+  setSearchQuery: (query) => set({ searchQuery: query }),
 
   fetchTasks: async () => {
     const user = useAuthStore.getState().user;
