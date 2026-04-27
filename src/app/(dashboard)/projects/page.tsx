@@ -213,6 +213,15 @@ export default function ProjectsPage() {
           </DialogPrimitive.Content>
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
+
+      <ConfirmDelete 
+        open={!!deleteProjectId}
+        onClose={() => setDeleteProjectId(null)}
+        onConfirm={confirmDeleteProject}
+        title="Delete Workspace?"
+        description="Are you sure you want to delete this workspace? All tasks inside will be permanently removed. This cannot be undone."
+      />
     </div>
+
   );
 }

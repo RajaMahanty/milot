@@ -190,18 +190,19 @@ export default function SprintPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-             <span className="flex items-center gap-1.5 rounded-md bg-amber-50 border border-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-700 uppercase tracking-wider">
+             <span className="flex items-center gap-1.5 rounded-md bg-amber-50 border border-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700 uppercase tracking-wider">
                Active Sprint
              </span>
-             <span className="text-muted-foreground text-[10px] font-medium flex items-center gap-1">
-                <Calendar className="h-3 w-3" />
+             <span className="text-muted-foreground text-xs font-medium flex items-center gap-1">
+                <Calendar className="h-3.5 w-3.5" />
                 {new Date(activeSprint.startDate).toLocaleDateString()} - {new Date(activeSprint.endDate).toLocaleDateString()}
              </span>
           </div>
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">
+          <h2 className="text-3xl font-bold tracking-tight text-foreground">
             {activeSprint.name}
           </h2>
         </div>
+
         
         <div className="flex items-center gap-3">
           <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-bold transition-colors ${
@@ -225,12 +226,12 @@ export default function SprintPage() {
         {/* Left Column: Metrics */}
         <div className="lg:col-span-1 space-y-5">
            {/* Progress Card */}
-           <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
               <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Sprint Progress</p>
-                <p className="text-xs font-bold text-primary">{progressPercent}%</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sprint Progress</p>
+                <p className="text-sm font-bold text-primary">{progressPercent}%</p>
               </div>
-              <div className="h-1.5 w-full rounded-full bg-secondary overflow-hidden mb-4">
+              <div className="h-2 w-full rounded-full bg-secondary overflow-hidden mb-4">
                 <div 
                   className="h-full bg-primary rounded-full transition-all duration-1000" 
                   style={{ width: `${progressPercent}%` }}
@@ -238,80 +239,83 @@ export default function SprintPage() {
               </div>
               <div className="flex justify-between items-baseline">
                 <div>
-                   <p className="text-lg font-bold text-foreground">{stats.done} <span className="text-[10px] font-medium text-muted-foreground">/ {stats.total} {stats.unit}</span></p>
+                   <p className="text-2xl font-bold text-foreground">{stats.done} <span className="text-sm font-medium text-muted-foreground">/ {stats.total} {stats.unit}</span></p>
                 </div>
                 {pace?.isBehind && (
-                  <div className="flex items-center gap-1 text-[9px] font-bold text-rose-500 bg-rose-50 px-1.5 py-0.5 rounded animate-pulse">
-                    <AlertTriangle className="h-3 w-3" />
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-rose-500 bg-rose-50 px-2 py-1 rounded-full animate-pulse shadow-sm border border-rose-100">
+                    <AlertTriangle className="h-3.5 w-3.5" />
+                    Behind
                   </div>
                 )}
               </div>
-           </div>
+            </div>
 
            {/* Small Stats Grid */}
            <div className="space-y-4">
               <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
-                    <Target className="h-3.5 w-3.5 text-primary" />
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Goal</p>
+                    <Target className="h-4 w-4 text-primary" />
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Goal</p>
                   </div>
                   {isEditingGoal ? (
                     <div className="space-y-2">
                        <textarea 
                          autoFocus
-                         className="w-full text-[11px] bg-secondary/30 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-primary min-h-[60px]"
+                         className="w-full text-sm bg-secondary/30 rounded-md p-2 focus:outline-none focus:ring-1 focus:ring-primary min-h-[80px]"
                          value={tempGoal}
                          onChange={(e) => setTempGoal(e.target.value)}
                        />
                        <div className="flex gap-2">
-                          <button onClick={handleUpdateGoal} className="px-2 py-1 bg-primary text-white text-[9px] font-bold rounded cursor-pointer">Save</button>
-                          <button onClick={() => setIsEditingGoal(false)} className="px-2 py-1 text-[9px] font-bold rounded border border-border cursor-pointer">Cancel</button>
+                          <button onClick={handleUpdateGoal} className="px-3 py-1.5 bg-primary text-white text-xs font-bold rounded cursor-pointer">Save</button>
+                          <button onClick={() => setIsEditingGoal(false)} className="px-3 py-1.5 text-xs font-bold rounded border border-border cursor-pointer">Cancel</button>
                        </div>
                     </div>
                   ) : (
                     <p 
                       onClick={() => { setTempGoal(activeSprint.goal || ""); setIsEditingGoal(true); }}
-                      className="text-[11px] text-foreground leading-relaxed cursor-pointer hover:text-primary transition-colors border border-transparent hover:border-primary/10 rounded p-1"
+                      className="text-sm text-foreground leading-relaxed cursor-pointer hover:text-primary transition-colors border border-transparent hover:border-primary/10 rounded p-2"
                     >
                       {activeSprint.goal || "No goal set. Click to define."}
                     </p>
                   )}
               </div>
 
+
               <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
                   <div className="flex items-center gap-2 mb-3">
-                    <History className="h-3.5 w-3.5 text-blue-500" />
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Velocity</p>
+                    <History className="h-4 w-4 text-blue-500" />
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Velocity</p>
                   </div>
                   <div className="flex items-baseline gap-1">
-                    <p className="text-xl font-bold text-foreground">{stats.done}</p>
-                    <p className="text-[10px] font-bold text-muted-foreground">{stats.unit} delivered</p>
+                    <p className="text-3xl font-bold text-foreground">{stats.done}</p>
+                    <p className="text-xs font-bold text-muted-foreground">{stats.unit} delivered</p>
                   </div>
               </div>
 
               <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-                  <div className="flex items-center gap-2 mb-3">
-                    <ListTodo className="h-3.5 w-3.5 text-indigo-500" />
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Workload</p>
+                  <div className="flex items-center gap-2 mb-4">
+                    <ListTodo className="h-4 w-4 text-indigo-500" />
+                    <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Workload</p>
                   </div>
-                  <div className="space-y-2.5">
+                  <div className="space-y-4">
                     {Array.from(new Set(sprintTasks.map(t => t.assignedTo || "Unassigned"))).map(user => {
                       const userTasks = sprintTasks.filter(t => t.assignedTo === (user === "Unassigned" ? undefined : user));
                       const userPoints = userTasks.reduce((sum, t) => sum + (t.storyPoints || 0), 0);
                       return (
                         <div key={user} className="flex items-center justify-between">
-                           <div className="flex items-center gap-2">
-                              <div className="h-5 w-5 rounded-md bg-secondary flex items-center justify-center text-[8px] font-bold border border-border">
+                           <div className="flex items-center gap-3">
+                              <div className="h-7 w-7 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold border border-border shadow-sm">
                                  {user.substring(0, 2).toUpperCase()}
                               </div>
-                              <span className="text-[10px] font-medium text-foreground">{user}</span>
+                              <span className="text-xs font-medium text-foreground">{user}</span>
                            </div>
-                           <span className="text-[10px] font-bold text-muted-foreground">{userPoints} pts</span>
+                           <span className="text-xs font-bold text-muted-foreground">{userPoints} pts</span>
                         </div>
                       );
                     })}
                   </div>
               </div>
+
            </div>
         </div>
 
@@ -357,49 +361,54 @@ export default function SprintPage() {
                   <div key={status} className="space-y-3">
                      <div className="flex items-center justify-between px-1">
                         <div className="flex items-center gap-2">
-                          <span className={`h-1.5 w-1.5 rounded-full ${
+                          <span className={`h-2 w-2 rounded-full ${
                             status === 'todo' ? 'bg-primary' : status === 'in-progress' ? 'bg-amber-400' : 'bg-emerald-500'
                           }`} />
-                          <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                          <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
                             {status.replace('-', ' ')}
                           </h4>
                         </div>
-                        <span className="text-[10px] font-bold text-muted-foreground opacity-40">
+                        <span className="text-xs font-bold text-muted-foreground opacity-40">
                           {sprintTasks.filter(t => t.status === status).length}
                         </span>
                      </div>
 
+
                      <div className="flex flex-col gap-2.5 min-h-[150px]">
                         {sprintTasks.filter(t => t.status === status).map((task) => (
                            <div 
-                             key={task.id}
-                             onClick={() => handleEditTask(task)}
-                             className="group p-3.5 rounded-xl border border-border bg-card shadow-sm hover:border-primary/20 transition-all cursor-pointer"
+                              key={task.id}
+                              onClick={() => handleEditTask(task)}
+                              className="group p-4 rounded-xl border border-border bg-card shadow-sm hover:border-primary/20 transition-all cursor-pointer hover:shadow-md"
                            >
                               <div className="flex justify-between items-start gap-2 mb-2">
-                                 <h5 className="text-[11px] font-bold text-foreground leading-snug line-clamp-2">
+                                 <h5 className="text-xs font-bold text-foreground leading-snug line-clamp-2 group-hover:text-primary transition-colors">
                                     {task.title}
                                  </h5>
-                                 <div className="flex-shrink-0 text-[9px] font-bold text-primary">
+                                 <div className="flex-shrink-0 text-[10px] font-black text-primary bg-primary/5 px-1.5 py-0.5 rounded">
                                     {task.storyPoints || 0}
                                  </div>
                               </div>
                               {task.description && (
-                                <p className="text-[9px] text-muted-foreground line-clamp-1 mb-3">
-                                   {task.description.length > 50 ? `${task.description.substring(0, 50)}...` : task.description}
+                                <p className="text-[10px] text-muted-foreground line-clamp-2 mb-4 leading-relaxed">
+                                   {task.description}
                                 </p>
                               )}
-                              <div className="flex items-center justify-between">
-                                 <div className="h-5 w-5 rounded-md bg-secondary flex items-center justify-center text-[7px] font-bold border border-border">
-                                    {task.assignedTo ? task.assignedTo.substring(0, 2).toUpperCase() : "U"}
+                              <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                                 <div className="flex items-center gap-2">
+                                    <div className="h-6 w-6 rounded-lg bg-secondary flex items-center justify-center text-[9px] font-bold border border-border shadow-sm">
+                                       {task.assignedTo ? task.assignedTo.substring(0, 2).toUpperCase() : "U"}
+                                    </div>
+                                    <span className="text-[10px] font-medium text-muted-foreground">{task.assignedTo || "Unassigned"}</span>
                                  </div>
                                  {task.priority && (
                                    <div className={priorityIcons[task.priority as keyof typeof priorityIcons]?.color}>
-                                      {React.createElement(priorityIcons[task.priority as keyof typeof priorityIcons]?.icon, { size: 12 })}
+                                      {React.createElement(priorityIcons[task.priority as keyof typeof priorityIcons]?.icon, { size: 14 })}
                                    </div>
                                  )}
                               </div>
                            </div>
+
                         ))}
                         
                         {sprintTasks.filter(t => t.status === status).length === 0 && (
