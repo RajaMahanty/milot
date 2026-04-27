@@ -112,13 +112,13 @@ export default function DashboardPage() {
                 <div className={`rounded-xl p-2 ${stat.bg}`}>
                   <stat.icon className={`h-6 w-6 ${stat.color}`} />
                 </div>
-                {stat.value > 0 && (
-                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg flex items-center gap-1">
-                    <ArrowUpRight className="h-3 w-3" />
-                    12%
+                {totalTasks > 0 && (
+                  <span className={`text-[10px] font-black ${stat.color.replace('600', '700')} ${stat.bg.replace('50', '200')} px-2 py-1 rounded-lg flex items-center gap-1`}>
+                    {Math.round((stat.value / totalTasks) * 100)}%
                   </span>
                 )}
               </div>
+
               <div className="mt-4">
                 <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
                 <p className="text-3xl font-bold tracking-tight text-foreground">{stat.value}</p>

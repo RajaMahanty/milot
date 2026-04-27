@@ -101,6 +101,14 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     }
   }, [open, initialData?.id, activeProjectId, projectList]);
 
+  const lastValidDueDate = useRef(initialData?.dueDate || "");
+  useEffect(() => {
+    if (open && initialData) {
+      lastValidDueDate.current = initialData.dueDate || "";
+    }
+  }, [open, initialData?.dueDate]);
+
+
   // Debounced Autosave
   useEffect(() => {
     // CRITICAL: Only autosave if we've fully loaded initial data and it's an edit
@@ -534,10 +542,36 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       type="date"
                       value={dueDate}
                       min={new Date().toISOString().split('T')[0]}
+                      max="2099-12-31"
                       onChange={(e) => setDueDate(e.target.value)}
-                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none"
+                      onBlur={(e) => {
+                        const val = e.target.value;
+                        if (!val) return;
+                        
+                        const selectedDate = new Date(val);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        
+                        if (selectedDate < today) {
+                           toast.warning("Past dates are not allowed. Restoring previous date.");
+                           setDueDate(lastValidDueDate.current);
+                           return;
+                        }
+                        if (selectedDate.getFullYear() > 2100) {
+                           toast.warning("Date too far in future. Restoring previous date.");
+                           setDueDate(lastValidDueDate.current);
+                           return;
+                        }
+
+                        // If valid, update the "last valid" reference
+                        lastValidDueDate.current = val;
+                      }}
+
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
                     />
+
                   </div>
+
                 </div>
               </div>
 

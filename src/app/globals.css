@@ -8,24 +8,32 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  
+
   /* Modern Neutral Palette */
-  --color-brand-primary: oklch(0.627 0.149 253.94); /* Subtle Blue */
-  --color-brand-secondary: oklch(0.985 0 0); /* Pure White */
+  --color-brand-primary: oklch(0.627 0.149 253.94);
+  /* Subtle Blue */
+  --color-brand-secondary: oklch(0.985 0 0);
+  /* Pure White */
   --color-neutral-subtle: oklch(0.97 0 0);
   --color-neutral-muted: oklch(0.556 0 0);
-  
+
   /* 8px Spacing Logic */
-  --spacing-1: 0.25rem; /* 4px */
-  --spacing-2: 0.5rem;  /* 8px */
-  --spacing-3: 0.75rem; /* 12px */
-  --spacing-4: 1rem;    /* 16px */
-  --spacing-6: 1.5rem;  /* 24px */
-  --spacing-8: 2rem;    /* 32px */
+  --spacing-1: 0.25rem;
+  /* 4px */
+  --spacing-2: 0.5rem;
+  /* 8px */
+  --spacing-3: 0.75rem;
+  /* 12px */
+  --spacing-4: 1rem;
+  /* 16px */
+  --spacing-6: 1.5rem;
+  /* 24px */
+  --spacing-8: 2rem;
+  /* 32px */
 
   --radius-xl: 12px;
   --radius-2xl: 16px;
-  
+
   --shadow-soft: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
   --shadow-card: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --shadow-elevated: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.08);
@@ -101,10 +109,13 @@
     transition-property: background-color, border-color, color, fill, stroke, opacity, box-shadow, transform;
     transition-duration: 200ms;
   }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    margin: 10px;
   }
+
   button {
     cursor: pointer;
   }
@@ -112,5 +123,5 @@
 
 .bg-soft-gradient {
   background: radial-gradient(at top left, oklch(0.98 0.01 250 / 0.5), transparent),
-              radial-gradient(at bottom right, oklch(0.99 0 0), transparent);
+    radial-gradient(at bottom right, oklch(0.99 0 0), transparent);
 }
