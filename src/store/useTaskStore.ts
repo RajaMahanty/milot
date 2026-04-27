@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { taskService } from '@/lib/taskService';
 import { useAuthStore } from './useAuthStore';
+import { toast } from './useToastStore';
+
 
 export interface SubTask {
   id: string;
@@ -93,9 +95,10 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       set({ tasks: dbTasks, columns: cols, isLoading: false });
     } catch (err: any) {
       console.error(err);
-      alert("Failed to fetch tasks from database. Error: " + err.message);
+      toast.error("Failed to fetch tasks from database.");
       set({ error: err.message, isLoading: false });
     }
+
   },
 
   addTask: async (task) => {
@@ -107,9 +110,10 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
     const activeSprintId = useSprintStore.getState().activeSprintId;
 
     if (!user || (!activeProjectId || activeProjectId === "all")) {
-      alert("Please select a specific project for this task.");
+      toast.warning("Please select a specific project first.");
       return;
     }
+
 
     const taskWithUid = {
       ...task,
@@ -135,8 +139,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       await taskService.createTask(cleanTask as any);
     } catch (err: any) {
       console.error(err);
-      alert("Failed to save task. Firebase error: " + err.message);
+      toast.error("Failed to save task.");
     }
+
   },
 
   editTask: async (taskId, updates) => {
@@ -179,8 +184,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     } catch (err: any) {
       console.error(err);
-      alert("Failed to update task. Firebase error: " + err.message);
+      toast.error("Failed to update task.");
     }
+
   },
 
   deleteTask: async (taskId) => {
@@ -210,8 +216,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       await taskService.deleteTask(taskId);
     } catch (err: any) {
       console.error(err);
-      alert("Failed to delete task. Firebase error: " + err.message);
+      toast.error("Failed to delete task.");
     }
+
   },
 
   moveTask: async (activeId, overId) => {
@@ -309,8 +316,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       );
     } catch (err: any) {
       console.error(err);
-      alert("Failed to assign some tasks to sprint.");
+      toast.error("Failed to assign tasks to sprint.");
     }
+
   },
 
   completeSprint: async () => {
@@ -353,7 +361,8 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       }
     } catch (err: any) {
       console.error(err);
-      alert("Failed to archive some tasks. Error: " + err.message);
+      toast.error("Failed to archive tasks.");
     }
+
   },
 }));

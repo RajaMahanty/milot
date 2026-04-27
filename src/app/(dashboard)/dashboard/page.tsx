@@ -10,7 +10,9 @@ import {
   ArrowUpRight 
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
+import { Skeleton } from "@/components/ui/Skeleton";
 import {
+
   BarChart,
   Bar,
   XAxis,
@@ -22,7 +24,7 @@ import {
 } from "recharts";
 
 export default function DashboardPage() {
-  const { tasks, fetchTasks } = useKanbanStore();
+  const { tasks, fetchTasks, isLoading } = useKanbanStore();
   const { user } = useAuthStore();
 
   useEffect(() => {
@@ -95,26 +97,37 @@ export default function DashboardPage() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat) => (
-          <div key={stat.label} className="rounded-2xl border border-border bg-card p-6 shadow-soft hover:shadow-card transition-all">
-            <div className="flex items-center justify-between">
-              <div className={`rounded-xl p-2 ${stat.bg}`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+        {isLoading ? (
+          [1, 2, 3, 4].map((i) => (
+            <div key={i} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+              <Skeleton className="h-10 w-10 rounded-xl mb-4" />
+              <Skeleton className="h-4 w-24 mb-2" />
+              <Skeleton className="h-8 w-12" />
+            </div>
+          ))
+        ) : (
+          stats.map((stat) => (
+            <div key={stat.label} className="rounded-2xl border border-border bg-card p-6 shadow-soft hover:shadow-card transition-all">
+              <div className="flex items-center justify-between">
+                <div className={`rounded-xl p-2 ${stat.bg}`}>
+                  <stat.icon className={`h-6 w-6 ${stat.color}`} />
+                </div>
+                {stat.value > 0 && (
+                  <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg flex items-center gap-1">
+                    <ArrowUpRight className="h-3 w-3" />
+                    12%
+                  </span>
+                )}
               </div>
-              {stat.value > 0 && (
-                <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg flex items-center gap-1">
-                  <ArrowUpRight className="h-3 w-3" />
-                  12%
-                </span>
-              )}
+              <div className="mt-4">
+                <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
+                <p className="text-3xl font-bold tracking-tight text-foreground">{stat.value}</p>
+              </div>
             </div>
-            <div className="mt-4">
-              <p className="text-sm font-medium text-muted-foreground">{stat.label}</p>
-              <p className="text-3xl font-bold tracking-tight text-foreground">{stat.value}</p>
-            </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
+
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
         {/* Task Velocity / Recharts Implementation */}
