@@ -13,7 +13,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 export default function ProjectsPage() {
   const { projects, setActiveProject, createProject, deleteProject, updateProject } = useProjectStore();
   const router = useRouter();
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
@@ -24,13 +24,13 @@ export default function ProjectsPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    
+
     if (editingProject) {
       await updateProject(editingProject, { title: newTitle, description: newDesc });
     } else {
       await createProject({ title: newTitle, description: newDesc });
     }
-    
+
     closeModal();
   };
 
@@ -81,18 +81,18 @@ export default function ProjectsPage() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-             <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                <LayoutGrid className="h-5 w-5" />
-             </div>
-             Workspaces
+            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+              <LayoutGrid className="h-5 w-5" />
+            </div>
+            Workspaces
           </h2>
           <p className="text-sm text-muted-foreground mt-2 text-neutral-muted">
             Manage your distinct projects and isolated workspaces here.
           </p>
         </div>
-        <button 
-           onClick={() => setIsModalOpen(true)}
-           className="flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:opacity-90 transition-all shadow-elevated active:scale-95"
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:opacity-90 transition-all shadow-elevated active:scale-95"
         >
           <Plus className="h-5 w-5" />
           New Workspace
@@ -101,67 +101,69 @@ export default function ProjectsPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">
         {Object.values(projects).map((project) => (
-          <div 
+          <div
             key={project.id}
             onClick={() => handleOpenProject(project.id)}
             className="group flex flex-col justify-between h-48 rounded-2xl border border-border bg-card p-5 shadow-soft hover:shadow-card hover:border-primary/30 transition-all cursor-pointer overflow-visible relative"
           >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-emerald-500 opacity-50 group-hover:opacity-100 transition-opacity" />
-            
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-brand-secondary opacity-40 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
+
+
+
             <div>
-               <div className="flex items-start justify-between mb-2">
-                 <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-secondary text-primary font-bold text-xs ring-1 ring-border">
-                    {project.title.substring(0, 2).toUpperCase()}
-                 </div>
-                 <div className="relative">
-                    <button 
-                      onClick={(e) => toggleDropdown(e, project.id)}
-                      className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 data-[open=true]:opacity-100"
-                      data-open={openDropdown === project.id}
-                    >
-                        <MoreVertical className="h-4 w-4" />
-                    </button>
-                    
-                    {openDropdown === project.id && (
-                      <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-xl shadow-elevated z-50 p-1 animate-in fade-in slide-in-from-top-2">
-                        <button 
-                          onClick={(e) => openEditModal(e, project)}
-                          className="w-full text-left px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary rounded-lg transition-colors flex items-center gap-2"
-                        >
-                          <Pencil className="h-3 w-3" />
-                          Edit
-                        </button>
-                        <button 
-                          onClick={(e) => handleDelete(e, project.id)}
-                          className="w-full text-left px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-2"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                          Delete
-                        </button>
-                      </div>
-                    )}
-                 </div>
-               </div>
-               <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">{project.title}</h3>
-               <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{project.description || "No description provided."}</p>
+              <div className="flex items-start justify-between mb-2">
+                <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-secondary text-primary font-bold text-xs ring-1 ring-border">
+                  {project.title.substring(0, 2).toUpperCase()}
+                </div>
+                <div className="relative">
+                  <button
+                    onClick={(e) => toggleDropdown(e, project.id)}
+                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 data-[open=true]:opacity-100"
+                    data-open={openDropdown === project.id}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+
+                  {openDropdown === project.id && (
+                    <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-xl shadow-elevated z-50 p-1 animate-in fade-in slide-in-from-top-2">
+                      <button
+                        onClick={(e) => openEditModal(e, project)}
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <Pencil className="h-3 w-3" />
+                        Edit
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, project.id)}
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">{project.title}</h3>
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{project.description || "No description provided."}</p>
             </div>
 
             <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground pt-4 border-t border-border mt-4">
-               <FolderKanban className="h-3 w-3" />
-               Project Space
+              <FolderKanban className="h-3 w-3" />
+              Project Space
             </div>
           </div>
         ))}
-        
+
         {/* Empty State / Create Button Card */}
-        <div 
+        <div
           onClick={() => setIsModalOpen(true)}
           className="flex flex-col items-center justify-center h-48 rounded-2xl border-2 border-dashed border-border bg-secondary/10 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer group"
         >
-           <div className="h-12 w-12 flex items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors mb-3">
-              <Plus className="h-6 w-6" />
-           </div>
-           <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Create New Workspace</p>
+          <div className="h-12 w-12 flex items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors mb-3">
+            <Plus className="h-6 w-6" />
+          </div>
+          <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Create New Workspace</p>
         </div>
       </div>
 
@@ -214,7 +216,7 @@ export default function ProjectsPage() {
         </DialogPrimitive.Portal>
       </DialogPrimitive.Root>
 
-      <ConfirmDelete 
+      <ConfirmDelete
         open={!!deleteProjectId}
         onClose={() => setDeleteProjectId(null)}
         onConfirm={confirmDeleteProject}

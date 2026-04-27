@@ -29,7 +29,7 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     <>
       {/* Mobile Overlay */}
       {isOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden transition-opacity duration-300"
           onClick={onClose}
         />
@@ -40,13 +40,14 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex h-16 items-center justify-between px-6">
-          <Link href="/dashboard" className="flex items-center gap-2" onClick={onClose}>
-            <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-              <FolderKanban className="h-5 w-5 text-primary-foreground" />
+          <Link href="/dashboard" className="flex items-center gap-3" onClick={onClose}>
+            <div className="h-10 w-10 flex items-center justify-center">
+              <img src="/logo.png" alt="TaskMatrix Logo" className="h-8 w-8 object-contain" />
             </div>
-            <span className="text-xl font-bold tracking-tight">TaskMatrix</span>
+            <span className="text-xl font-bold tracking-tight text-foreground">TaskMatrix</span>
           </Link>
-          <button 
+
+          <button
             onClick={onClose}
             className="lg:hidden h-8 w-8 rounded-lg flex items-center justify-center hover:bg-secondary transition-colors"
           >

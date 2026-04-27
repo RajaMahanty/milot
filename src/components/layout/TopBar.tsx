@@ -11,6 +11,8 @@ import Cookies from "js-cookie";
 import { useProjectStore } from "@/store/useProjectStore";
 
 export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
+  const [workspaceOpen, setWorkspaceOpen] = React.useState(false);
+
 
   const user = useAuthStore((state) => state.user);
   const { projects, activeProjectId, setActiveProject } = useProjectStore();
@@ -43,24 +45,36 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         
         <div className="flex items-center gap-6">
 
-        <div className="relative group">
-          <div className="flex items-center gap-2 cursor-pointer hover:bg-secondary rounded-lg px-2 py-1 transition-colors">
-            <span className="text-sm font-semibold text-foreground italic px-1 bg-primary/10 text-primary rounded">TM</span>
+        <div className="relative">
+          <div 
+            onClick={() => setWorkspaceOpen(!workspaceOpen)}
+            className={`flex items-center gap-2 cursor-pointer hover:bg-secondary rounded-lg px-2 py-1 transition-colors ${workspaceOpen ? 'bg-secondary' : ''}`}
+          >
+            <img src="/logo.png" alt="TaskMatrix" className="h-5 w-5 object-contain" />
+
             <span className="text-sm font-bold text-foreground truncate max-w-[150px]">
               {activeProjectId === "all" || !activeProjectId ? "All Workspaces" : activeProject?.title}
             </span>
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${workspaceOpen ? 'rotate-180' : ''}`} />
           </div>
 
+          {/* Mobile Overlay to close */}
+          {workspaceOpen && (
+            <div 
+              className="fixed inset-0 z-40 bg-transparent" 
+              onClick={() => setWorkspaceOpen(false)}
+            />
+          )}
+
           {/* Dropdown Menu */}
-          <div className="absolute top-full left-0 w-56 pt-1 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-            <div className="rounded-xl border border-border bg-card p-1 shadow-elevated pointer-events-none group-hover:pointer-events-auto">
-              <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground uppercase tracking-wider">
+          <div className={`absolute top-full left-0 w-64 pt-1 transition-all z-50 ${workspaceOpen ? 'opacity-100 visible h-auto' : 'opacity-0 invisible h-0 overflow-hidden'}`}>
+            <div className="rounded-xl border border-border bg-card p-1 shadow-elevated">
+              <div className="px-2 py-1.5 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                 Switch Workspace
               </div>
               
               <button
-                onClick={() => setActiveProject("all")}
+                onClick={() => { setActiveProject("all"); setWorkspaceOpen(false); }}
                 className={`w-full text-left flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors ${!activeProjectId || activeProjectId === 'all' ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-secondary'}`}
               >
                 <div className="flex items-center gap-2">
@@ -71,31 +85,32 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
 
               <div className="h-[1px] w-full bg-border my-1" />
 
-              <div className="max-h-60 overflow-y-auto no-scrollbar">
+              <div className="max-h-64 overflow-y-auto no-scrollbar">
                 {Object.values(projects).length > 0 ? (
                   Object.values(projects).map(p => (
                     <button
                       key={p.id}
-                      onClick={() => setActiveProject(p.id)}
+                      onClick={() => { setActiveProject(p.id); setWorkspaceOpen(false); }}
                       className={`w-full text-left flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors ${p.id === activeProjectId ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-secondary'}`}
                     >
                       <span className="truncate pl-4">{p.title}</span>
                     </button>
                   ))
                 ) : (
-                  <div className="px-2 py-2 text-xs text-muted-foreground">No workspaces found.</div>
+                  <div className="px-2 py-2 text-xs text-muted-foreground italic">No workspaces found.</div>
                 )}
               </div>
               <div className="h-[1px] w-full bg-border my-1" />
               <button
-                onClick={() => router.push("/projects")}
-                className="w-full text-left flex items-center px-2 py-2 text-sm font-medium text-foreground hover:bg-secondary rounded-lg transition-colors"
+                onClick={() => { router.push("/projects"); setWorkspaceOpen(false); }}
+                className="w-full text-left flex items-center px-2 py-2 text-sm font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors"
               >
                 Manage Workspaces
               </button>
             </div>
           </div>
         </div>
+
         
         <div className="hidden md:flex relative w-96 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground transition-colors group-hover:text-foreground" />

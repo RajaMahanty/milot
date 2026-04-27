@@ -9,13 +9,11 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 
-  /* Modern Neutral Palette */
-  --color-brand-primary: oklch(0.627 0.149 253.94);
-  /* Subtle Blue */
-  --color-brand-secondary: oklch(0.985 0 0);
-  /* Pure White */
-  --color-neutral-subtle: oklch(0.97 0 0);
-  --color-neutral-muted: oklch(0.556 0 0);
+  /* New Brand Palette */
+  --color-brand-primary: #4F46E5;
+  --color-brand-secondary: #06B6D4;
+  --color-neutral-subtle: #F9FAFB;
+  --color-neutral-muted: #6B7280;
 
   /* 8px Spacing Logic */
   --spacing-1: 0.25rem;
@@ -50,6 +48,8 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-popover: var(--popover);
@@ -58,49 +58,54 @@
   --color-card-foreground: var(--card-foreground);
 }
 
+
 :root {
-  --background: oklch(0.99 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.627 0.149 253.94);
-  --primary-foreground: oklch(1 0 0);
-  --secondary: oklch(0.96 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.96 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.96 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.6 0.2 25);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.94 0 0);
-  --input: oklch(0.94 0 0);
-  --ring: oklch(0.627 0.149 253.94 / 30%);
+  --background: #F9FAFB;
+  --foreground: #111827;
+  --card: #FFFFFF;
+  --card-foreground: #111827;
+  --popover: #FFFFFF;
+  --popover-foreground: #111827;
+  --primary: #4F46E5;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F3F4F6;
+  --secondary-foreground: #111827;
+  --muted: #F3F4F6;
+  --muted-foreground: #6B7280;
+  --accent: #EEF2FF;
+  --accent-foreground: #4F46E5;
+  --success: #10B981;
+  --warning: #F59E0B;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
+  --border: #E5E7EB;
+  --input: #E5E7EB;
+  --ring: #4F46E5;
   --radius: 12px;
 }
 
+
+
 .dark {
-  --background: oklch(0.15 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.18 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.18 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.6 0.15 250);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.22 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.22 0 0);
-  --muted-foreground: oklch(0.7 0 0);
-  --accent: oklch(0.22 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(0.25 0 0);
-  --input: oklch(0.25 0 0);
-  --ring: oklch(0.6 0.15 250 / 30%);
+  --background: #111827;
+  --foreground: #F9FAFB;
+  --card: #1F2937;
+  --card-foreground: #F9FAFB;
+  --popover: #1F2937;
+  --popover-foreground: #F9FAFB;
+  --primary: #6366F1;
+  --primary-foreground: #FFFFFF;
+  --secondary: #374151;
+  --secondary-foreground: #F9FAFB;
+  --muted: #374151;
+  --muted-foreground: #9CA3AF;
+  --accent: #312E81;
+  --accent-foreground: #A5B4FC;
+  --destructive: #7F1D1D;
+  --destructive-foreground: #F9FAFB;
+  --border: #374151;
+  --input: #374151;
+  --ring: #6366F1;
 }
 
 @layer base {
@@ -113,7 +118,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
-    margin: 10px;
+    /* padding: 10px; */
   }
 
   button {
@@ -122,6 +127,6 @@
 }
 
 .bg-soft-gradient {
-  background: radial-gradient(at top left, oklch(0.98 0.01 250 / 0.5), transparent),
-    radial-gradient(at bottom right, oklch(0.99 0 0), transparent);
+  background: radial-gradient(at top left, #EEF2FF, transparent),
+    radial-gradient(at bottom right, #FFFFFF, transparent);
 }
