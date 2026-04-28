@@ -10,7 +10,8 @@ import {
   FolderKanban,
   Database,
   Zap,
-  Users
+  Users,
+  User
 } from "lucide-react";
 
 const navItems = [
@@ -20,7 +21,9 @@ const navItems = [
   { icon: Database, label: "Backlog", href: "/backlog" },
   { icon: Zap, label: "Sprint", href: "/sprint" },
   { icon: Users, label: "Team", href: "/team" },
+  { icon: User, label: "Profile", href: "/profile" },
 ];
+
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();

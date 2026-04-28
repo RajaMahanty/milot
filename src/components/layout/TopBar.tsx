@@ -209,12 +209,21 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
         <div className="h-4 w-[1px] bg-border mx-2" />
 
         <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <p className="text-xs font-semibold text-foreground leading-none">{displayName}</p>
-            <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">{user?.email || "No email"}</p>
-          </div>
-          <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold overflow-hidden cursor-pointer selection:bg-transparent">
-             {initials}
+          <div 
+            onClick={() => router.push("/profile")}
+            className="flex items-center gap-3 cursor-pointer group transition-all"
+          >
+            <div className="text-right hidden sm:block">
+              <p className="text-xs font-semibold text-foreground leading-none group-hover:text-primary transition-colors">
+                {displayName}
+              </p>
+              <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">
+                {user?.email || "No email"}
+              </p>
+            </div>
+            <div className="h-9 w-9 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold overflow-hidden selection:bg-transparent group-hover:scale-105 transition-transform">
+              {initials}
+            </div>
           </div>
           <button 
             onClick={handleLogout}
@@ -224,6 +233,7 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
             <LogOut className="h-4 w-4" />
           </button>
         </div>
+
       </div>
     </header>
   );

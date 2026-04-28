@@ -68,7 +68,7 @@ export default function Board() {
 
 
 
-  const { columns, tasks, addTask, editTask, deleteTask, moveTask, fetchTasks, isLoading, searchQuery } = useKanbanStore();
+  const { columns, tasks, addTask, editTask, deleteTask, moveTask, fetchTasks, isLoading, searchQuery, setSearchQuery } = useKanbanStore();
 
 
   const { user } = useAuthStore();
