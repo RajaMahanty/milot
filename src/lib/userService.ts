@@ -38,6 +38,21 @@ export const userService = {
     return null;
   },
 
+  async getProfileByUsername(username: string): Promise<UserProfile | null> {
+    if (!username) return null;
+    const q = query(
+      collection(db, USERS_COLLECTION),
+      where("username", "==", username),
+      // we only expect 1 but limit(1) is good practice for uniqueness
+    );
+    const querySnapshot = await getDocs(q);
+    
+    if (!querySnapshot.empty) {
+      return querySnapshot.docs[0].data() as UserProfile;
+    }
+    return null;
+  },
+
   async syncProfile(uid: string, initialData: Partial<UserProfile>): Promise<void> {
     const docRef = doc(db, USERS_COLLECTION, uid);
     const docSnap = await getDoc(docRef);
@@ -101,17 +116,50 @@ export const userService = {
   },
 
   async searchUsers(queryStr: string): Promise<UserProfile[]> {
-    const q = query(
+    const cleanQueryLower = queryStr.toLowerCase();
+    
+    // Query 1: displayName prefix (case-sensitive as stored, typically)
+    const q1 = query(
       collection(db, USERS_COLLECTION),
       where("displayName", ">=", queryStr),
       where("displayName", "<=", queryStr + "\uf8ff")
     );
     
-    const querySnapshot = await getDocs(q);
-    const users: UserProfile[] = [];
-    querySnapshot.forEach((doc) => {
-      users.push(doc.data() as UserProfile);
+    // Query 2: username prefix
+    const q2 = query(
+      collection(db, USERS_COLLECTION),
+      where("username", ">=", cleanQueryLower),
+      where("username", "<=", cleanQueryLower + "\uf8ff")
+    );
+    
+    // Query 3: exact email
+    const q3 = query(
+      collection(db, USERS_COLLECTION),
+      where("email", "==", queryStr)
+    );
+
+    const [snap1, snap2, snap3] = await Promise.all([getDocs(q1), getDocs(q2), getDocs(q3)]);
+    
+    const userMap = new Map<string, UserProfile>();
+    
+    [snap1, snap2, snap3].forEach(snap => {
+      snap.forEach(doc => {
+        userMap.set(doc.id, doc.data() as UserProfile);
+      });
     });
-    return users;
+    
+    return Array.from(userMap.values());
+  },
+
+  async getUsersByIds(uids: string[]): Promise<UserProfile[]> {
+    if (!uids || uids.length === 0) return [];
+    
+    // Using Promise.all with getDoc for simplicity and to avoid the 'in' query limit of 10 items.
+    const promises = uids.map(uid => getDoc(doc(db, USERS_COLLECTION, uid)));
+    const docs = await Promise.all(promises);
+    
+    return docs
+      .filter(docSnap => docSnap.exists())
+      .map(docSnap => docSnap.data() as UserProfile);
   }
 };

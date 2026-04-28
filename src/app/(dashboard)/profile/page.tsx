@@ -3,7 +3,9 @@
 import React, { useState, useEffect } from "react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { userService, UserProfile } from "@/lib/userService";
-import { useKanbanStore } from "@/store/useTaskStore";
+import { useKanbanStore, Task } from "@/store/useTaskStore";
+import { TaskModal } from "@/components/task/TaskModal";
+import { taskService } from "@/lib/taskService";
 import { 
   User, 
   Settings, 
@@ -18,20 +20,29 @@ import {
   Search as SearchIcon,
   UserPlus,
   UserMinus,
-  ExternalLink
+  ExternalLink,
+  X
 } from "lucide-react";
 import { toast } from "@/store/useToastStore";
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
   const { user } = useAuthStore();
-  const { tasks } = useKanbanStore();
+  const { tasks, editTask } = useKanbanStore();
+  const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [allTasks, setAllTasks] = useState<Task[]>([]);
   const [activeTab, setActiveTab] = useState<"overview" | "settings" | "network">("overview");
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Task Modal States
+  const [activeEditTask, setActiveEditTask] = useState<Task | null>(null);
+  const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
   
   // Edit States
   const [editName, setEditName] = useState("");
   const [editBio, setEditBio] = useState("");
+  const [editUsername, setEditUsername] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   // Search/Network States
@@ -39,11 +50,32 @@ export default function ProfilePage() {
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Network Modal States
+  const [networkModal, setNetworkModal] = useState<{ isOpen: boolean, type: 'followers' | 'following', title: string }>({ isOpen: false, type: 'followers', title: '' });
+  const [networkModalUsers, setNetworkModalUsers] = useState<UserProfile[]>([]);
+  const [isNetworkModalLoading, setIsNetworkModalLoading] = useState(false);
+
+  // Public Profile Modal States
+  const [publicProfileModal, setPublicProfileModal] = useState<{ isOpen: boolean, username: string }>({ isOpen: false, username: '' });
+  const [publicProfile, setPublicProfile] = useState<UserProfile | null>(null);
+  const [isPublicProfileLoading, setIsPublicProfileLoading] = useState(false);
+
   useEffect(() => {
     if (user?.uid) {
       loadProfile();
+      loadAllTasks();
     }
   }, [user?.uid]);
+
+  const loadAllTasks = async () => {
+    if (!user) return;
+    try {
+       const tasksRecord = await taskService.fetchTasks(user.uid, "all");
+       setAllTasks(Object.values(tasksRecord));
+    } catch (error) {
+       console.error("Failed to load all tasks:", error);
+    }
+  };
 
   const loadProfile = async () => {
     if (!user) return;
@@ -59,6 +91,7 @@ export default function ProfilePage() {
         setProfile(data);
         setEditName(data.displayName || "");
         setEditBio(data.bio || "");
+        setEditUsername(data.username || "");
       }
     } catch (error) {
       console.error(error);
@@ -72,9 +105,21 @@ export default function ProfilePage() {
     if (!user) return;
     setIsSaving(true);
     try {
+      const cleanUsername = editUsername.trim().toLowerCase().replace(/\s+/g, '_');
+      
+      if (profile?.username !== cleanUsername) {
+        const isAvailable = await userService.isUsernameAvailable(cleanUsername);
+        if (!isAvailable) {
+          toast.error("Username is already taken.");
+          setIsSaving(false);
+          return;
+        }
+      }
+
       await userService.updateProfile(user.uid, {
         displayName: editName,
-        bio: editBio
+        bio: editBio,
+        username: cleanUsername
       });
       toast.success("Profile updated successfully!");
       loadProfile();
@@ -90,7 +135,7 @@ export default function ProfilePage() {
     setIsSearching(true);
     try {
       const results = await userService.searchUsers(userSearchQuery);
-      setSearchResults(results.filter(u => u.uid !== user?.uid)); // Don't show self
+      setSearchResults(results);
     } catch (error) {
       toast.error("Search failed.");
     } finally {
@@ -122,20 +167,63 @@ export default function ProfilePage() {
       setSearchResults(prev => prev.map(u => 
         u.uid === targetUid ? { ...u, followers: (u.followers || []).filter(id => id !== user.uid) } : u
       ));
+      setNetworkModalUsers(prev => prev.map(u => 
+        u.uid === targetUid ? { ...u, followers: (u.followers || []).filter(id => id !== user.uid) } : u
+      ));
     } catch (error) {
       toast.error("Unfollow action failed.");
     }
   };
 
+  const handleOpenNetworkModal = async (type: 'followers' | 'following', sourceProfile?: UserProfile | null) => {
+    const target = sourceProfile || profile;
+    const uids = type === 'followers' ? target?.followers : target?.following;
+    if (!uids || uids.length === 0) return;
+
+    setNetworkModal({ isOpen: true, type, title: type === 'followers' ? 'Followers' : 'Following' });
+    setIsNetworkModalLoading(true);
+    try {
+       const users = await userService.getUsersByIds(uids);
+       setNetworkModalUsers(users);
+    } catch (error) {
+       toast.error("Failed to load users");
+    } finally {
+       setIsNetworkModalLoading(false);
+    }
+  };
+
+  const handleOpenPublicProfile = async (username: string) => {
+    setPublicProfileModal({ isOpen: true, username });
+    setIsPublicProfileLoading(true);
+    try {
+      const data = await userService.getProfileByUsername(username);
+      setPublicProfile(data);
+    } catch (error) {
+      toast.error("Failed to load user profile");
+      setPublicProfileModal({ isOpen: false, username: '' });
+    } finally {
+      setIsPublicProfileLoading(false);
+    }
+  };
+
+  const handleSaveTask = async (data: any) => {
+    if (activeEditTask) {
+      await editTask(activeEditTask.id, {
+        ...data,
+        projectId: data.projectId
+      });
+      loadAllTasks();
+    }
+  };
+
   const taskStats = React.useMemo(() => {
-     const allTasks = Object.values(tasks);
      const completed = allTasks.filter(t => t.status === "done").length;
      return {
         total: allTasks.length,
         completed: completed,
         completionRate: allTasks.length > 0 ? Math.round((completed / allTasks.length) * 100) : 0
      };
-  }, [tasks]);
+  }, [allTasks]);
 
   if (isLoading) {
      return (
@@ -159,6 +247,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-bold text-foreground truncate">{profile?.displayName || "User"}</h1>
+            <p className="text-sm font-medium text-primary mt-0.5 mb-1">@{profile?.username}</p>
             <p className="text-sm text-muted-foreground">{profile?.email}</p>
             <div className="flex flex-wrap gap-3 mt-3">
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/50 px-2 py-1 rounded">
@@ -166,6 +255,18 @@ export default function ProfilePage() {
               </span>
               <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/5 px-2 py-1 rounded">
                 {taskStats.completed} Tasks Completed
+              </span>
+              <span 
+                onClick={() => handleOpenNetworkModal('followers')}
+                className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/50 px-2 py-1 rounded cursor-pointer hover:bg-secondary hover:text-foreground transition-colors"
+              >
+                {profile?.followers?.length || 0} Followers
+              </span>
+              <span 
+                onClick={() => handleOpenNetworkModal('following')}
+                className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/50 px-2 py-1 rounded cursor-pointer hover:bg-secondary hover:text-foreground transition-colors"
+              >
+                {profile?.following?.length || 0} Following
               </span>
             </div>
           </div>
@@ -215,18 +316,45 @@ export default function ProfilePage() {
                      <div className="mt-8">
                         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">Recent Activity</h2>
                         <div className="space-y-2">
-                           {Object.values(tasks)
-                              .filter(t => t.status === "done")
-                              .slice(0, 3)
-                              .map(t => (
-                                 <div key={t.id} className="p-3 rounded-lg border border-border text-xs flex items-center justify-between">
-                                    <span className="font-medium">{t.title}</span>
-                                    <span className="text-[10px] text-muted-foreground">Completed</span>
-                                 </div>
-                              ))
+                           {allTasks
+                              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                              .slice(0, 5)
+                              .map(t => {
+                                 let actionText = "Created task";
+                                 let actionColor = "text-muted-foreground";
+                                 
+                                 if (t.status === "in-progress") {
+                                    actionText = "Started working on";
+                                    actionColor = "text-blue-500 dark:text-blue-400";
+                                 } else if (t.status === "done") {
+                                    actionText = "Completed task";
+                                    actionColor = "text-green-500 dark:text-green-400";
+                                 } else if (t.status === "archived") {
+                                    actionText = "Archived task";
+                                 }
+
+                                 return (
+                                    <div 
+                                      key={t.id} 
+                                      onClick={() => {
+                                         setActiveEditTask(t);
+                                         setIsTaskModalOpen(true);
+                                      }}
+                                      className="p-3 rounded-xl border border-border text-xs flex flex-col gap-1 hover:bg-secondary/20 transition-colors cursor-pointer"
+                                    >
+                                       <div className="flex items-center justify-between">
+                                          <span className="font-bold text-foreground">{t.title}</span>
+                                          <span className={`text-[10px] font-bold ${actionColor}`}>{actionText}</span>
+                                       </div>
+                                       <p className="text-[10px] text-muted-foreground">
+                                          {new Date(t.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                       </p>
+                                    </div>
+                                 );
+                              })
                            }
-                           {Object.values(tasks).filter(t => t.status === "done").length === 0 && (
-                              <p className="text-xs text-muted-foreground italic">No recent activity.</p>
+                           {allTasks.length === 0 && (
+                              <p className="text-xs text-muted-foreground italic bg-secondary/10 p-4 rounded-xl text-center border border-dashed border-border">No recent activity.</p>
                            )}
                         </div>
                      </div>
@@ -243,6 +371,15 @@ export default function ProfilePage() {
                               type="text" 
                               value={editName}
                               onChange={(e) => setEditName(e.target.value)}
+                              className="w-full h-10 rounded-xl bg-secondary/30 border border-border px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                           />
+                        </div>
+                        <div>
+                           <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1.5 ml-1">Username</label>
+                           <input 
+                              type="text" 
+                              value={editUsername}
+                              onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/\s+/g, '_'))}
                               className="w-full h-10 rounded-xl bg-secondary/30 border border-border px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
                            />
                         </div>
@@ -290,20 +427,30 @@ export default function ProfilePage() {
                                const isFollowing = profile?.following?.includes(u.uid);
                                return (
                                   <div key={u.uid} className="p-3 rounded-xl border border-border flex items-center justify-between">
-                                     <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold">
+                                     <div className="flex items-center gap-3 cursor-pointer" onClick={() => handleOpenPublicProfile(u.username)}>
+                                        <div className="h-8 w-8 rounded-lg bg-secondary flex items-center justify-center text-[10px] font-bold text-foreground shadow-sm">
                                            {u.displayName?.substring(0, 2).toUpperCase() || "U"}
                                         </div>
                                         <div className="text-xs">
-                                           <p className="font-bold">{u.displayName}</p>
-                                           <p className="text-muted-foreground">{u.email}</p>
+                                           <p className="font-bold text-foreground hover:underline">{u.displayName}</p>
+                                           <p className="text-[10px] text-primary font-medium">@{u.username}</p>
                                         </div>
                                      </div>
                                      <button 
-                                       onClick={() => isFollowing ? handleUnfollow(u.uid) : handleFollow(u.uid)}
-                                       className={`px-3 py-1 rounded-lg text-[10px] font-bold ${isFollowing ? 'bg-secondary text-muted-foreground' : 'bg-primary/10 text-primary'}`}
+                                       onClick={() => {
+                                          if (u.uid === user?.uid) return;
+                                          isFollowing ? handleUnfollow(u.uid) : handleFollow(u.uid);
+                                       }}
+                                       disabled={u.uid === user?.uid}
+                                       className={`px-3 py-1 rounded-lg text-[10px] font-bold transition-colors ${
+                                          u.uid === user?.uid
+                                          ? 'bg-secondary/50 text-muted-foreground/50 cursor-not-allowed'
+                                          : isFollowing 
+                                          ? 'bg-secondary text-muted-foreground hover:bg-destructive/10 hover:text-destructive' 
+                                          : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                       }`}
                                      >
-                                        {isFollowing ? 'Unfollow' : 'Follow'}
+                                        {u.uid === user?.uid ? 'You' : isFollowing ? 'Unfollow' : 'Follow'}
                                      </button>
                                   </div>
                                );
@@ -319,6 +466,161 @@ export default function ProfilePage() {
             </div>
          </div>
       </div>
+
+      {/* Network Modal */}
+      {networkModal.isOpen && (
+         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in">
+            <div className="w-full max-w-md bg-card border border-border rounded-2xl shadow-elevated overflow-hidden animate-in zoom-in-95">
+               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                  <h3 className="font-bold text-foreground">{networkModal.title}</h3>
+                  <button onClick={() => setNetworkModal({ ...networkModal, isOpen: false })} className="p-1 rounded-lg hover:bg-secondary text-muted-foreground transition-colors">
+                     <X className="h-5 w-5" />
+                  </button>
+               </div>
+               <div className="max-h-[60vh] overflow-y-auto p-4 flex flex-col gap-3">
+                  {isNetworkModalLoading ? (
+                     <div className="flex justify-center py-8">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                     </div>
+                  ) : networkModalUsers.length > 0 ? (
+                     networkModalUsers.map(u => {
+                        const isFollowing = profile?.following?.includes(u.uid);
+                        return (
+                           <div key={u.uid} className="p-3 rounded-xl border border-border flex items-center justify-between hover:bg-secondary/20 transition-colors">
+                              <div className="flex items-center gap-3 cursor-pointer" onClick={() => {
+                                 setNetworkModal({ ...networkModal, isOpen: false });
+                                 handleOpenPublicProfile(u.username);
+                              }}>
+                                 <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-xs font-bold text-white shadow-sm">
+                                    {u.displayName?.substring(0, 2).toUpperCase() || "U"}
+                                 </div>
+                                 <div className="flex flex-col min-w-0">
+                                    <p className="font-bold text-sm text-foreground truncate hover:underline">{u.displayName}</p>
+                                    <p className="text-xs text-primary font-medium">@{u.username}</p>
+                                 </div>
+                              </div>
+                              <button 
+                                 onClick={() => {
+                                    if (u.uid === user?.uid) return;
+                                    isFollowing ? handleUnfollow(u.uid) : handleFollow(u.uid);
+                                 }}
+                                 disabled={u.uid === user?.uid}
+                                 className={`px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors ${
+                                    u.uid === user?.uid
+                                    ? 'bg-secondary/50 text-muted-foreground/50 cursor-not-allowed'
+                                    : isFollowing 
+                                    ? 'bg-secondary text-muted-foreground hover:bg-destructive/10 hover:text-destructive' 
+                                    : 'bg-primary/10 text-primary hover:bg-primary/20'
+                                 }`}
+                              >
+                                 {u.uid === user?.uid ? 'You' : isFollowing ? 'Unfollow' : 'Follow'}
+                              </button>
+                           </div>
+                        );
+                     })
+                  ) : (
+                     <p className="text-sm text-muted-foreground text-center py-8">No users found.</p>
+                  )}
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Public Profile Modal */}
+      {publicProfileModal.isOpen && (
+         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in p-4">
+            <div className="w-full max-w-2xl bg-card border border-border rounded-2xl shadow-elevated overflow-hidden animate-in zoom-in-95 flex flex-col max-h-[90vh]">
+               <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+                  <h3 className="font-bold text-foreground">User Profile</h3>
+                  <button onClick={() => setPublicProfileModal({ isOpen: false, username: '' })} className="p-1 rounded-lg hover:bg-secondary text-muted-foreground transition-colors">
+                     <X className="h-5 w-5" />
+                  </button>
+               </div>
+               
+               <div className="overflow-y-auto p-6 flex-1">
+                  {isPublicProfileLoading ? (
+                     <div className="flex justify-center py-12">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                     </div>
+                  ) : publicProfile ? (
+                     <div className="flex flex-col gap-6">
+                        <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
+                           <div className="h-24 w-24 rounded-2xl bg-primary shrink-0 flex items-center justify-center text-3xl font-bold text-white shadow-md">
+                              {publicProfile.displayName?.substring(0, 2).toUpperCase() || "U"}
+                           </div>
+                           <div className="flex-1 text-center md:text-left min-w-0">
+                              <h2 className="text-2xl font-bold text-foreground truncate">{publicProfile.displayName}</h2>
+                              <p className="text-sm font-medium text-primary mt-0.5 mb-2">@{publicProfile.username}</p>
+                              
+                              <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
+                                 <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/50 px-2 py-1 rounded">
+                                    Joined {new Date(publicProfile.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                                 </span>
+                                 <span 
+                                    onClick={() => publicProfile?.followers?.length && handleOpenNetworkModal('followers', publicProfile)}
+                                    className={`text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/50 px-2 py-1 rounded transition-colors ${publicProfile?.followers?.length ? 'cursor-pointer hover:bg-secondary hover:text-foreground' : ''}`}
+                                 >
+                                    {publicProfile.followers?.length || 0} Followers
+                                 </span>
+                                 <span 
+                                    onClick={() => publicProfile?.following?.length && handleOpenNetworkModal('following', publicProfile)}
+                                    className={`text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/50 px-2 py-1 rounded transition-colors ${publicProfile?.following?.length ? 'cursor-pointer hover:bg-secondary hover:text-foreground' : ''}`}
+                                 >
+                                    {publicProfile.following?.length || 0} Following
+                                 </span>
+                              </div>
+                           </div>
+                           
+                           <div className="shrink-0">
+                              {user?.uid !== publicProfile.uid && (
+                                 <button 
+                                    onClick={() => {
+                                       const isFollowing = publicProfile.followers?.includes(user?.uid || "");
+                                       if (isFollowing) {
+                                          handleUnfollow(publicProfile.uid);
+                                          setPublicProfile(prev => prev ? { ...prev, followers: prev.followers?.filter(id => id !== user?.uid) } : null);
+                                       } else {
+                                          handleFollow(publicProfile.uid);
+                                          setPublicProfile(prev => prev ? { ...prev, followers: [...(prev.followers || []), user!.uid] } : null);
+                                       }
+                                    }}
+                                    className={`px-6 py-2 rounded-xl text-xs font-bold transition-all shadow-sm w-full md:w-auto ${
+                                       publicProfile.followers?.includes(user?.uid || "")
+                                       ? 'bg-secondary text-foreground hover:bg-destructive/10 hover:text-destructive border border-border' 
+                                       : 'bg-primary text-white hover:opacity-90'
+                                    }`}
+                                 >
+                                    {publicProfile.followers?.includes(user?.uid || "") ? 'Unfollow' : 'Follow'}
+                                 </button>
+                              )}
+                           </div>
+                        </div>
+
+                        <div className="bg-secondary/20 border border-border rounded-xl p-5">
+                           <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Biography</h4>
+                           <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                              {publicProfile.bio || "No biography provided."}
+                           </p>
+                        </div>
+                     </div>
+                  ) : (
+                     <p className="text-center text-muted-foreground py-12">User not found.</p>
+                  )}
+               </div>
+            </div>
+         </div>
+      )}
+
+      {/* Task Modal for viewing details from activity */}
+      <TaskModal
+        open={isTaskModalOpen}
+        onClose={() => {
+          setIsTaskModalOpen(false);
+          setActiveEditTask(null);
+        }}
+        onSave={handleSaveTask}
+        initialData={activeEditTask}
+      />
     </div>
   );
 }
