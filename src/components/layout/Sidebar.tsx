@@ -11,7 +11,8 @@ import {
   Database,
   Zap,
   Users,
-  User
+  User,
+  BookOpen
 } from "lucide-react";
 
 const navItems = [
@@ -23,6 +24,7 @@ const navItems = [
   { icon: Zap, label: "Sprint", href: "/sprint" },
   { icon: Users, label: "Team", href: "/team" },
   { icon: User, label: "Profile", href: "/profile" },
+  { icon: BookOpen, label: "Learn", href: "/learn" },
 ];
 
 
