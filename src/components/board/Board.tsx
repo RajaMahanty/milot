@@ -27,6 +27,7 @@ import {
   DropAnimation,
   pointerWithin,
   rectIntersection,
+  useDroppable,
 } from "@dnd-kit/core";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -57,6 +58,37 @@ const dropAnimation: DropAnimation = {
     },
   }),
 };
+
+// Droppable board tab component
+function DroppableBoardTab({ board, isActive, onSelect, onDoubleClick, children }: {
+  board: { id: string; name: string };
+  isActive: boolean;
+  onSelect: () => void;
+  onDoubleClick: () => void;
+  children?: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: `board-tab-${board.id}` });
+  return (
+    <button
+      ref={setNodeRef}
+      onClick={onSelect}
+      onDoubleClick={onDoubleClick}
+      className={`px-6 py-3 text-sm font-bold transition-all relative ${
+        isOver
+          ? 'text-primary bg-primary/10 ring-2 ring-primary/30 rounded-t-xl scale-105'
+          : isActive
+            ? 'text-primary'
+            : 'text-muted-foreground hover:text-foreground'
+      }`}
+      title="Double click to rename · Drag cards here to move"
+    >
+      {board.name}
+      {isActive && !isOver && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
+      {isOver && <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full animate-pulse" />}
+      {children}
+    </button>
+  );
+}
 
 export default function Board() {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -245,7 +277,18 @@ export default function Board() {
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over) {
-      moveTask(active.id as string, over.id as string);
+      const overId = over.id as string;
+      // Check if dropped on a board tab
+      if (overId.startsWith('board-tab-')) {
+        const targetBoardId = overId.replace('board-tab-', '');
+        const taskId = active.id as string;
+        if (tasks[taskId] && tasks[taskId].boardId !== targetBoardId) {
+          editTask(taskId, { boardId: targetBoardId });
+          toast.success(`Moved to ${boards[targetBoardId]?.name || 'board'}`);
+        }
+      } else {
+        moveTask(active.id as string, overId);
+      }
     }
     setActiveTask(null);
   };
@@ -389,6 +432,13 @@ export default function Board() {
         </div>
       </div>
 
+      <DndContext
+        sensors={sensors}
+        collisionDetection={collisionDetectionStrategy}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
       {/* Board Tabs */}
       <div className="flex items-center gap-1 border-b border-border mb-6">
         {Object.values(boards).map((board) => (
@@ -408,18 +458,15 @@ export default function Board() {
                 />
               </div>
             ) : (
-              <button
-                onClick={() => setActiveBoard(board.id)}
+              <DroppableBoardTab
+                board={board}
+                isActive={activeBoardId === board.id}
+                onSelect={() => setActiveBoard(board.id)}
                 onDoubleClick={() => {
                   setEditingBoardId(board.id);
                   setTempBoardName(board.name);
                 }}
-                className={`px-6 py-3 text-sm font-bold transition-all relative ${activeBoardId === board.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-                title="Double click to rename board"
-              >
-                {board.name}
-                {activeBoardId === board.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
-              </button>
+              />
             )}
             <button 
               onClick={(e) => { e.stopPropagation(); setDeleteBoardId(board.id); }}
@@ -533,13 +580,7 @@ export default function Board() {
         </div>
       </div>
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={collisionDetectionStrategy}
-        onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
-        onDragEnd={handleDragEnd}
-      >
+
         {viewMode === "board" ? (
           <div className="flex flex-1 gap-6 overflow-x-auto pb-8 no-scrollbar scroll-smooth">
             {isLoading ? (

@@ -102,7 +102,13 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
     set({ isLoading: true, error: null, lastVisible: null, hasMore: true });
     try {
-      const projects = useProjectStore.getState().projects;
+      let projects = useProjectStore.getState().projects;
+
+      // If projects haven't loaded yet (e.g. page reload), wait for them
+      if (Object.keys(projects).length === 0) {
+        await useProjectStore.getState().fetchProjects();
+        projects = useProjectStore.getState().projects;
+      }
 
       let allDbTasks: Record<string, Task> = {};
       let lastDoc: any = null;

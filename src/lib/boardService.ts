@@ -44,5 +44,16 @@ export const boardService = {
   async deleteBoard(boardId: string): Promise<void> {
     const boardRef = doc(db, BOARDS_COLLECTION, boardId);
     await deleteDoc(boardRef);
+  },
+
+  // Delete all boards belonging to a project
+  async deleteBoardsByProjectId(projectId: string): Promise<void> {
+    const q = query(
+      collection(db, BOARDS_COLLECTION),
+      where("projectId", "==", projectId)
+    );
+    const snap = await getDocs(q);
+    const deletePromises = snap.docs.map(d => deleteDoc(doc(db, BOARDS_COLLECTION, d.id)));
+    await Promise.all(deletePromises);
   }
 };

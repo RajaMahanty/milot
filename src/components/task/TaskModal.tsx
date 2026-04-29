@@ -74,6 +74,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [isSaving, setIsSaving] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [isAIDescriptionProcessing, setIsAIDescriptionProcessing] = useState(false);
+  const [isAITitleProcessing, setIsAITitleProcessing] = useState(false);
   const hasLoadedInitial = useRef(false);
   const lastNotifiedAssignee = useRef<string | null>(null);
   const currentTaskId = useRef<string | null>(null);
@@ -470,6 +471,28 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     }
   };
 
+  const refineAITitle = async () => {
+    if (!title.trim()) return;
+    setIsAITitleProcessing(true);
+    try {
+      const response = await fetch("/api/ai/title", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+      const data = await response.json();
+      if (data.title) {
+        setTitle(data.title);
+        toast.success("Title refined via AI!");
+      }
+    } catch (error) {
+      console.error("AI Title Refinement failed", error);
+      toast.error("Failed to refine title via AI.");
+    } finally {
+      setIsAITitleProcessing(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent
@@ -524,19 +547,39 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
             {/* Main Content Column */}
             <div className="flex-1 p-8 space-y-8 border-r border-slate-100 dark:border-slate-800">
               {/* Title Section */}
-              <div className="space-y-4">
+              <div className="relative">
                 <textarea
+                  ref={(el) => {
+                    if (el) {
+                      el.style.height = 'auto';
+                      el.style.height = el.scrollHeight + 'px';
+                    }
+                  }}
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Task title..."
                   rows={1}
-                  className="w-full text-3xl font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-slate-200 dark:placeholder:text-slate-800 text-slate-900 dark:text-white resize-none leading-tight"
+                  className="w-full pr-28 text-3xl font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-slate-200 dark:placeholder:text-slate-800 text-slate-900 dark:text-white resize-none leading-tight overflow-hidden"
                   onInput={(e) => {
                     const target = e.target as HTMLTextAreaElement;
                     target.style.height = 'auto';
                     target.style.height = target.scrollHeight + 'px';
                   }}
                 />
+                {title.trim() && (
+                  <button
+                    onClick={refineAITitle}
+                    disabled={isAITitleProcessing}
+                    className={`absolute top-0 right-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter transition-all shadow-sm ${
+                      isAITitleProcessing 
+                      ? 'bg-primary/20 text-primary animate-pulse cursor-wait' 
+                      : 'bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95'
+                    } disabled:opacity-50 disabled:pointer-events-none`}
+                  >
+                    <Zap className={`h-2.5 w-2.5 ${isAITitleProcessing ? 'animate-bounce' : ''}`} />
+                    {isAITitleProcessing ? 'Refining...' : 'AI Refine'}
+                  </button>
+                )}
               </div>
 
               {/* Description Section */}

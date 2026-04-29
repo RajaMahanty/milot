@@ -81,5 +81,16 @@ export const taskService = {
   async deleteTask(taskId: string): Promise<void> {
     const taskRef = doc(db, TASKS_COLLECTION, taskId);
     await deleteDoc(taskRef);
+  },
+
+  // Delete all tasks belonging to a project
+  async deleteTasksByProjectId(projectId: string): Promise<void> {
+    const q = query(
+      collection(db, TASKS_COLLECTION),
+      where("projectId", "==", projectId)
+    );
+    const snap = await getDocs(q);
+    const deletePromises = snap.docs.map(d => deleteDoc(doc(db, TASKS_COLLECTION, d.id)));
+    await Promise.all(deletePromises);
   }
 };

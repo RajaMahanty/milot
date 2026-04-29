@@ -58,5 +58,22 @@ export const sprintService = {
   async updateSprint(id: string, updates: Partial<Sprint>): Promise<void> {
     const sprintRef = doc(db, SPRINTS_COLLECTION, id);
     await updateDoc(sprintRef, updates);
+  },
+
+  // Delete a single sprint
+  async deleteSprint(id: string): Promise<void> {
+    const sprintRef = doc(db, SPRINTS_COLLECTION, id);
+    await deleteDoc(sprintRef);
+  },
+
+  // Delete all sprints belonging to a project
+  async deleteSprintsByProjectId(projectId: string): Promise<void> {
+    const q = query(
+      collection(db, SPRINTS_COLLECTION),
+      where("projectId", "==", projectId)
+    );
+    const snap = await getDocs(q);
+    const deletePromises = snap.docs.map(d => deleteDoc(doc(db, SPRINTS_COLLECTION, d.id)));
+    await Promise.all(deletePromises);
   }
 };

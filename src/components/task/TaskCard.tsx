@@ -1,9 +1,9 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Calendar, MessageSquare, Pencil, Trash2 } from "lucide-react";
 
-import { Task } from "@/store/useTaskStore";
+import { Task, useKanbanStore } from "@/store/useTaskStore";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useAuthStore } from "@/store/useAuthStore";
 
@@ -37,9 +37,46 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
   const priorityStyle = task.priority ? priorityConfig[task.priority] : null;
   const { projects, activeProjectId } = useProjectStore();
   const { user } = useAuthStore();
+  const editTask = useKanbanStore(s => s.editTask);
   const project = projects[task.projectId];
   const isOwner = project?.uid === user?.uid;
   const showProjectTag = activeProjectId === "all" || !activeProjectId;
+
+  // Inline title editing
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [editTitle, setEditTitle] = useState(task.title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditingTitle) {
+      titleInputRef.current?.focus();
+      titleInputRef.current?.select();
+    }
+  }, [isEditingTitle]);
+
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditTitle(task.title);
+    setIsEditingTitle(true);
+  };
+
+  const commitTitleEdit = () => {
+    const trimmed = editTitle.trim();
+    if (trimmed && trimmed !== task.title) {
+      editTask(task.id, { title: trimmed });
+    }
+    setIsEditingTitle(false);
+  };
+
+  const handleTitleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      commitTitleEdit();
+    } else if (e.key === "Escape") {
+      setEditTitle(task.title);
+      setIsEditingTitle(false);
+    }
+  };
 
   return (
     <div
@@ -52,12 +89,27 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
       }`}
     >
       <div className="flex items-start justify-between gap-3 mb-1">
-        <h3 
-          onClick={(e) => { e.stopPropagation(); onEdit?.(task); }}
-          className="text-sm font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors cursor-pointer pointer-events-auto"
-        >
-          {task.title}
-        </h3>
+        {isEditingTitle ? (
+          <input
+            ref={titleInputRef}
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onBlur={commitTitleEdit}
+            onKeyDown={handleTitleKeyDown}
+            onPointerDown={(e) => e.stopPropagation()}
+            maxLength={120}
+            className="flex-1 text-sm font-bold tracking-tight text-foreground bg-primary/5 border border-primary/30 rounded-lg px-2 py-1 focus:ring-2 focus:ring-primary/20 outline-none pointer-events-auto"
+          />
+        ) : (
+          <h3 
+            onClick={(e) => { e.stopPropagation(); onEdit?.(task); }}
+            onDoubleClick={handleDoubleClick}
+            className="text-sm font-bold tracking-tight text-foreground leading-snug group-hover:text-primary transition-colors cursor-pointer pointer-events-auto line-clamp-2"
+            title="Double-click to edit title"
+          >
+            {task.title}
+          </h3>
+        )}
         <div className="flex flex-col items-end gap-1.5">
           {showProjectTag && (
             <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[9px] font-bold ${project ? (isOwner ? 'border-primary/20 bg-primary/5 text-primary' : 'border-blue-200 bg-blue-50 text-blue-600') : 'border-rose-200 bg-rose-50 text-rose-600'}`}>

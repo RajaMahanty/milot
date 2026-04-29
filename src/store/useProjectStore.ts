@@ -3,6 +3,9 @@ import { projectService, Project } from '@/lib/projectService';
 import { useAuthStore } from './useAuthStore';
 import { useKanbanStore } from './useTaskStore';
 import { useBoardStore } from './useBoardStore';
+import { sprintService } from '@/lib/sprintService';
+import { taskService } from '@/lib/taskService';
+import { boardService } from '@/lib/boardService';
 
 export type { Project };
 
@@ -213,6 +216,12 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     }
 
     try {
+      // Cascade delete: sprints, tasks, boards, then the project itself
+      await Promise.all([
+        sprintService.deleteSprintsByProjectId(projectId),
+        taskService.deleteTasksByProjectId(projectId),
+        boardService.deleteBoardsByProjectId(projectId),
+      ]);
       await projectService.deleteProject(projectId);
     } catch (err) {
       console.error("Failed to delete project:", err);
