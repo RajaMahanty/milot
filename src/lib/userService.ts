@@ -15,8 +15,10 @@ import { db } from "./firebase";
 export interface UserProfile {
   uid: string;
   username: string;
+  usernameLower?: string;
   email: string | null;
   displayName: string | null;
+  displayNameLower?: string;
   bio?: string;
   photoURL?: string;
   followers?: string[];
@@ -62,21 +64,37 @@ export const userService = {
         ? initialData.displayName.toLowerCase().replace(/\s+/g, '_') + "_" + uid.substring(0, 4)
         : "user_" + uid.substring(0, 6);
 
+      const displayName = initialData.displayName || null;
+
       await setDoc(docRef, {
         ...initialData,
         uid,
-        username: defaultUsername,
+        username: defaultUsername.toLowerCase(),
+        usernameLower: defaultUsername.toLowerCase(),
+        displayNameLower: displayName ? displayName.toLowerCase() : null,
         followers: [],
         following: [],
         createdAt: new Date().toISOString()
       });
+    } else {
+       // Even if it exists, let's ensure lowercase fields are there
+       const data = docSnap.data();
+       if (!data.usernameLower || !data.displayNameLower) {
+          await updateDoc(docRef, {
+             usernameLower: data.username.toLowerCase(),
+             displayNameLower: data.displayName ? data.displayName.toLowerCase() : null
+          });
+       }
     }
   },
 
 
   async updateProfile(uid: string, data: Partial<UserProfile>): Promise<void> {
     const docRef = doc(db, USERS_COLLECTION, uid);
-    await updateDoc(docRef, data);
+    const updates: any = { ...data };
+    if (data.username) updates.usernameLower = data.username.toLowerCase();
+    if (data.displayName) updates.displayNameLower = data.displayName.toLowerCase();
+    await updateDoc(docRef, updates);
   },
 
   async isUsernameAvailable(username: string): Promise<boolean> {
@@ -118,18 +136,18 @@ export const userService = {
   async searchUsers(queryStr: string): Promise<UserProfile[]> {
     const cleanQueryLower = queryStr.toLowerCase();
     
-    // Query 1: displayName prefix (case-sensitive as stored, typically)
+    // Query 1: displayNameLower prefix
     const q1 = query(
       collection(db, USERS_COLLECTION),
-      where("displayName", ">=", queryStr),
-      where("displayName", "<=", queryStr + "\uf8ff")
+      where("displayNameLower", ">=", cleanQueryLower),
+      where("displayNameLower", "<=", cleanQueryLower + "\uf8ff")
     );
     
-    // Query 2: username prefix
+    // Query 2: usernameLower prefix
     const q2 = query(
       collection(db, USERS_COLLECTION),
-      where("username", ">=", cleanQueryLower),
-      where("username", "<=", cleanQueryLower + "\uf8ff")
+      where("usernameLower", ">=", cleanQueryLower),
+      where("usernameLower", "<=", cleanQueryLower + "\uf8ff")
     );
     
     // Query 3: exact email

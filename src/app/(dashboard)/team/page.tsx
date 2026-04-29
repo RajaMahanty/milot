@@ -1,146 +1,327 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { useTeamStore } from "@/store/useTeamStore";
+import { useAuthStore } from "@/store/useAuthStore";
+import { useNotificationStore } from "@/store/useNotificationStore";
+import { userService, UserProfile } from "@/lib/userService";
 import { 
-  Mail, 
-  MessageSquare, 
-  MoreHorizontal, 
-  Phone, 
-  UserPlus, 
+  Users, 
+  Plus, 
   Search, 
-  Clock, 
-  CheckCircle2 
+  UserPlus, 
+  Mail, 
+  Shield, 
+  Trash2, 
+  MoreVertical,
+  X,
+  CheckCircle2,
+  ChevronRight
 } from "lucide-react";
+import { toast } from "@/store/useToastStore";
 
 export default function TeamPage() {
-  const members = [
-    { 
-      id: 1, 
-      name: "Alex Rivera", 
-      role: "Lead Developer", 
-      email: "alex@taskmatrix.io", 
-      tasks: 12, 
-      completed: 45, 
-      avatar: "AR",
-      status: "online" 
-    },
-    { 
-      id: 2, 
-      name: "Sarah Chen", 
-      role: "Senior UX Designer", 
-      email: "sarah@taskmatrix.io", 
-      tasks: 8, 
-      completed: 32, 
-      avatar: "SC",
-      status: "online" 
-    },
-    { 
-      id: 3, 
-      name: "Marcus Thorne", 
-      role: "Backend Architect", 
-      email: "marcus@taskmatrix.io", 
-      tasks: 5, 
-      completed: 88, 
-      avatar: "MT",
-      status: "busy" 
-    },
-    { 
-      id: 4, 
-      name: "Elena Vance", 
-      role: "Project Manager", 
-      email: "elena@taskmatrix.io", 
-      tasks: 2, 
-      completed: 120, 
-      avatar: "EV",
-      status: "offline" 
-    },
-  ];
+  const { teams, fetchTeams, createTeam, deleteTeam, removeMemberFromTeam } = useTeamStore();
+  const { sendNotification } = useNotificationStore();
+  const { user } = useAuthStore();
+  
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [newTeamName, setNewTeamName] = useState("");
+  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null);
+  
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    fetchTeams();
+  }, []);
+
+  useEffect(() => {
+    if (selectedTeamId) {
+      const team = teams.find(t => t.id === selectedTeamId);
+      if (team) {
+        loadTeamMembers(team.memberIds);
+      }
+    } else if (teams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(teams[0].id);
+    }
+  }, [selectedTeamId, teams]);
+
+  const loadTeamMembers = async (uids: string[]) => {
+    const members = await userService.getUsersByIds(uids);
+    setTeamMembers(members);
+  };
+
+  const handleCreateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName.trim()) return;
+    await createTeam(newTeamName);
+    setNewTeamName("");
+    setIsCreateModalOpen(false);
+  };
+
+  const handleSearchUsers = async () => {
+    if (userSearchQuery.trim().length < 2) return;
+    setIsSearching(true);
+    try {
+      const results = await userService.searchUsers(userSearchQuery);
+      setSearchResults(results);
+    } catch (error) {
+      toast.error("Search failed.");
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleInviteToTeam = async (targetUser: UserProfile) => {
+    if (!selectedTeamId) return;
+    const team = teams.find(t => t.id === selectedTeamId);
+    if (!team) return;
+
+    if (team.memberIds.includes(targetUser.uid)) {
+      toast.error("User is already in this team.");
+      return;
+    }
+
+    await sendNotification({
+      type: 'team_invite',
+      toUid: targetUser.uid,
+      teamId: team.id,
+      teamName: team.name
+    });
+    
+    setSearchResults(prev => prev.filter(u => u.uid !== targetUser.uid));
+  };
+
+  const selectedTeam = teams.find(t => t.id === selectedTeamId);
 
   return (
     <div className="flex flex-col gap-8 pb-8 h-full">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-foreground">
-            Team Members
+          <h2 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+            <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+              <Users className="h-5 w-5" />
+            </div>
+            Teams
           </h2>
-          <p className="text-sm text-muted-foreground mt-1 text-neutral-muted">
-            Manage your project team and view their current resource allocation.
+          <p className="text-sm text-muted-foreground mt-2">
+            Collaborate with your team members across multiple projects.
           </p>
         </div>
-        <button className="flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:opacity-90 transition-all shadow-elevated active:scale-95">
-          <UserPlus className="h-5 w-5" />
-          Invite Member
+        <button
+          onClick={() => setIsCreateModalOpen(true)}
+          className="flex h-11 items-center gap-2 rounded-xl bg-primary px-4 text-sm font-bold text-primary-foreground hover:opacity-90 transition-all shadow-elevated active:scale-95"
+        >
+          <Plus className="h-5 w-5" />
+          Create Team
         </button>
       </div>
 
-      {/* Toolbar */}
-      <div className="flex items-center gap-4 bg-card border border-border rounded-2xl p-4 shadow-soft">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Search members..." 
-            className="w-full h-10 rounded-xl bg-secondary/50 border-none pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
-          />
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Teams List Sidebar */}
+        <div className="lg:col-span-1 space-y-3">
+          <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest px-2 mb-2">Your Teams</div>
+          {teams.length > 0 ? (
+            teams.map(t => (
+              <button
+                key={t.id}
+                onClick={() => setSelectedTeamId(t.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left ${
+                  selectedTeamId === t.id 
+                  ? 'bg-primary/5 border-primary/20 text-primary shadow-sm' 
+                  : 'bg-card border-border text-muted-foreground hover:bg-secondary hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`h-8 w-8 rounded-lg flex items-center justify-center text-xs font-bold ${
+                    selectedTeamId === t.id ? 'bg-primary text-white' : 'bg-secondary text-muted-foreground'
+                  }`}>
+                    {t.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-bold truncate max-w-[120px]">{t.name}</span>
+                </div>
+                <ChevronRight className={`h-4 w-4 transition-transform ${selectedTeamId === t.id ? 'translate-x-1' : ''}`} />
+              </button>
+            ))
+          ) : (
+            <div className="p-8 text-center border-2 border-dashed border-border rounded-2xl bg-secondary/10">
+              <p className="text-xs font-medium text-muted-foreground">No teams yet.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Team Details Panel */}
+        <div className="lg:col-span-3 space-y-6">
+          {selectedTeam ? (
+            <div className="bg-card border border-border rounded-2xl p-6 shadow-soft">
+              <div className="flex items-center justify-between mb-8">
+                <div className="flex items-center gap-4">
+                  <div className="h-14 w-14 rounded-2xl bg-primary flex items-center justify-center text-xl font-bold text-white shadow-md">
+                    {selectedTeam.name.substring(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">{selectedTeam.name}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {selectedTeam.memberIds.length} Members • Created {new Date(selectedTeam.createdAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                
+                {selectedTeam.ownerId === user?.uid && (
+                  <button 
+                    onClick={() => { if(window.confirm("Delete team?")) deleteTeam(selectedTeam.id); }}
+                    className="p-2.5 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors border border-border hover:border-destructive/20"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Members List */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Team Members</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {teamMembers.map(m => (
+                      <div key={m.uid} className="flex items-center justify-between p-3 rounded-xl border border-border hover:bg-secondary/20 transition-colors group">
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center text-xs font-bold text-primary ring-1 ring-border shadow-sm">
+                            {m.displayName?.substring(0, 2).toUpperCase() || "U"}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-foreground leading-none">{m.displayName}</p>
+                            <p className="text-[10px] text-muted-foreground mt-1">@{m.username}</p>
+                          </div>
+                        </div>
+                        {selectedTeam.ownerId === m.uid ? (
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg">
+                            <Shield className="h-3 w-3" />
+                            Owner
+                          </span>
+                        ) : selectedTeam.ownerId === user?.uid && (
+                          <button 
+                            onClick={() => removeMemberFromTeam(selectedTeam.id, m.uid)}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Invite Members */}
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Invite New Members</h4>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input 
+                      type="text"
+                      placeholder="Search by name, email or username..."
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-background transition-all"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleSearchUsers}
+                    className="w-full py-2.5 rounded-xl bg-secondary text-foreground text-xs font-bold hover:bg-border transition-colors border border-border"
+                  >
+                    {isSearching ? "Searching..." : "Find Members"}
+                  </button>
+
+                  <div className="space-y-2 mt-4 max-h-[200px] overflow-y-auto no-scrollbar">
+                    {searchResults.length > 0 ? (
+                      searchResults.map(u => (
+                        <div key={u.uid} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card/50 hover:bg-card transition-all">
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                              {u.displayName?.substring(0, 2).toUpperCase() || "U"}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-xs font-bold text-foreground truncate">{u.displayName}</p>
+                              <p className="text-[10px] text-muted-foreground">@{u.username}</p>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => handleInviteToTeam(u)}
+                            className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-sm active:scale-95"
+                          >
+                            <UserPlus className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))
+                    ) : userSearchQuery && !isSearching && (
+                      <p className="text-xs text-muted-foreground text-center py-4 italic">No users found.</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="h-full flex flex-col items-center justify-center text-center p-12 bg-card border border-border border-dashed rounded-3xl">
+              <div className="h-16 w-16 rounded-2xl bg-secondary flex items-center justify-center text-muted-foreground mb-4 opacity-50">
+                <Users className="h-8 w-8" />
+              </div>
+              <h3 className="text-xl font-bold text-foreground">Select or Create a Team</h3>
+              <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+                Teams allow you to group people together and assign them to projects with a single click.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Member Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4">
-        {members.map((member) => (
-          <div key={member.id} className="group relative flex flex-col rounded-2xl border border-border bg-card p-6 shadow-soft hover:shadow-card hover:border-primary/20 transition-all cursor-pointer">
-            <button className="absolute right-4 top-4 h-8 w-8 rounded-lg text-muted-foreground hover:bg-secondary inline-flex items-center justify-center transition-colors">
-              <MoreHorizontal size={16} />
-            </button>
-
-            <div className="flex flex-col items-center text-center">
-              <div className="relative">
-                <div className="h-20 w-20 rounded-full bg-secondary flex items-center justify-center text-xl font-bold tracking-tighter shadow-inner ring-4 ring-background overflow-hidden relative">
-                   {member.avatar}
-                </div>
-                <div className={`absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-card ${
-                  member.status === 'online' ? 'bg-emerald-500' : 
-                  member.status === 'busy' ? 'bg-rose-500' : 'bg-neutral-300'
-                }`} />
-              </div>
-
-              <h4 className="mt-4 text-base font-bold text-foreground group-hover:text-primary transition-colors">{member.name}</h4>
-              <p className="text-xs font-medium text-muted-foreground">{member.role}</p>
-
-              <div className="mt-6 flex items-center gap-6 w-full justify-center border-y border-border py-4">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-foreground flex items-center gap-1.5 justify-center">
-                     <Clock className="h-4 w-4 text-amber-500" />
-                     {member.tasks}
-                  </p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Active</p>
-                </div>
-                <div className="h-8 w-[1px] bg-border" />
-                <div className="text-center">
-                  <p className="text-lg font-bold text-foreground flex items-center gap-1.5 justify-center">
-                     <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                     {member.completed}
-                  </p>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Closed</p>
-                </div>
-              </div>
-
-              <div className="mt-6 flex items-center gap-2 w-full">
-                 <button className="flex-1 h-9 rounded-xl bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-2">
-                    <MessageSquare className="h-3.5 w-3.5" />
-                    Chat
-                 </button>
-                 <button className="h-9 w-9 rounded-xl bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground transition-all flex items-center justify-center">
-                    <Mail className="h-4 w-4" />
-                 </button>
-                 <button className="h-9 w-9 rounded-xl bg-secondary text-muted-foreground hover:bg-accent hover:text-foreground transition-all flex items-center justify-center">
-                    <Phone className="h-4 w-4" />
-                 </button>
-              </div>
+      {/* Create Team Modal */}
+      {isCreateModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+          <div className="w-full max-w-md bg-card border border-border rounded-[32px] shadow-card overflow-hidden animate-in zoom-in-95 p-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-2xl font-bold tracking-tight">New Team</h3>
+              <button onClick={() => setIsCreateModalOpen(false)} className="p-2 rounded-xl hover:bg-secondary text-muted-foreground transition-colors">
+                <X className="h-5 w-5" />
+              </button>
             </div>
+            
+            <form onSubmit={handleCreateTeam} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Team Name</label>
+                <input 
+                  autoFocus
+                  required
+                  placeholder="e.g. Design Team"
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-secondary/50 border border-border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-background transition-all"
+                />
+              </div>
+              
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
+                <button 
+                  type="button"
+                  onClick={() => setIsCreateModalOpen(false)}
+                  className="px-6 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-primary text-white text-sm font-bold shadow-elevated hover:opacity-90 active:scale-95 transition-all"
+                >
+                  Create Team
+                </button>
+              </div>
+            </form>
           </div>
-        ))}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

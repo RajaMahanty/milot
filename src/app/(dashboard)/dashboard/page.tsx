@@ -29,6 +29,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (user?.uid) {
+      // Ensure profile is synced for search functionality
+      const { userService } = require('@/lib/userService');
+      userService.syncProfile(user.uid, {
+        displayName: user.displayName,
+        email: user.email
+      });
       fetchTasks();
     }
   }, [fetchTasks, user?.uid]);

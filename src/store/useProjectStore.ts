@@ -18,6 +18,9 @@ interface ProjectState {
   updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
   
+  inviteMemberToProject: (projectId: string, uid: string) => Promise<void>;
+  assignTeamToProject: (projectId: string, teamId: string) => Promise<void>;
+  
   // Pagination
   lastVisible: any | null;
   hasMore: boolean;
@@ -42,18 +45,30 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     set({ isLoading: true, error: null, lastVisible: null, hasMore: true });
     try {
-      const { projects: dbProjects, lastVisible: lastDoc } = await projectService.fetchProjects(user.uid, 50);
+      // 1. Fetch projects where user is a direct member
+      const { projects: userProjects, lastVisible: lastDoc } = await projectService.fetchProjects(user.uid, 50);
       
-      const projectIds = Object.keys(dbProjects);
+      // 2. Fetch projects where user's teams are assigned
+      const { useTeamStore } = require('./useTeamStore');
+      await useTeamStore.getState().fetchTeams();
+      const userTeams = useTeamStore.getState().teams;
+      const teamIds = userTeams.map((t: any) => t.id);
+      
+      let teamProjects = {};
+      if (teamIds.length > 0) {
+        teamProjects = await projectService.fetchProjectsByTeams(teamIds);
+      }
+
+      const allFetchedProjects = { ...teamProjects, ...userProjects };
+      
       const activeId = get().activeProjectId;
-      
       let newActiveId = activeId || "all";
-      if (activeId && activeId !== "all" && !dbProjects[activeId]) {
+      if (activeId && activeId !== "all" && !allFetchedProjects[activeId]) {
         newActiveId = "all";
       }
 
       set({ 
-        projects: dbProjects, 
+        projects: allFetchedProjects, 
         isLoading: false, 
         activeProjectId: newActiveId,
         lastVisible: lastDoc,
@@ -107,6 +122,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       ...projectData,
       id: crypto.randomUUID(),
       uid: user.uid,
+      memberIds: [user.uid],
+      teamIds: [],
       createdAt: new Date().toISOString(),
     };
 
@@ -184,6 +201,46 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       await projectService.deleteProject(projectId);
     } catch (err) {
       console.error("Failed to delete project:", err);
+    }
+  },
+
+  inviteMemberToProject: async (projectId, uid) => {
+    const project = get().projects[projectId];
+    if (!project) return;
+    if (project.memberIds.includes(uid)) return;
+
+    const newMemberIds = [...project.memberIds, uid];
+    set(state => ({
+      projects: {
+        ...state.projects,
+        [projectId]: { ...project, memberIds: newMemberIds }
+      }
+    }));
+
+    try {
+      await projectService.updateProject(projectId, { memberIds: newMemberIds });
+    } catch (err) {
+      console.error(err);
+    }
+  },
+
+  assignTeamToProject: async (projectId, teamId) => {
+    const project = get().projects[projectId];
+    if (!project) return;
+    if (project.teamIds.includes(teamId)) return;
+
+    const newTeamIds = [...project.teamIds, teamId];
+    set(state => ({
+      projects: {
+        ...state.projects,
+        [projectId]: { ...project, teamIds: newTeamIds }
+      }
+    }));
+
+    try {
+      await projectService.updateProject(projectId, { teamIds: newTeamIds });
+    } catch (err) {
+      console.error(err);
     }
   }
 }));

@@ -12,6 +12,9 @@ import {
 import { useProjectStore } from "@/store/useProjectStore";
 import { useSprintStore } from "@/store/useSprintStore";
 import { useBoardStore } from "@/store/useBoardStore";
+import { useTeamStore } from "@/store/useTeamStore";
+import { useNotificationStore } from "@/store/useNotificationStore";
+import { userService, UserProfile } from "@/lib/userService";
 import { Task, SubTask, Comment } from "@/store/useTaskStore";
 import {
   CheckCircle2,
@@ -59,17 +62,47 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [newSubtask, setNewSubtask] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [assignedTo, setAssignedTo] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
   const [isAIDescriptionProcessing, setIsAIDescriptionProcessing] = useState(false);
   const hasLoadedInitial = useRef(false);
-
+  const lastNotifiedAssignee = useRef<string | null>(null);
   const currentTaskId = useRef<string | null>(null);
 
   const { projects, activeProjectId } = useProjectStore();
   const { sprints, activeSprintId } = useSprintStore();
   const { boards, activeBoardId } = useBoardStore();
+  const { teams } = useTeamStore();
+  const { sendNotification } = useNotificationStore();
   const { user } = useAuthStore();
+  
+  const [projectMembers, setProjectMembers] = useState<UserProfile[]>([]);
+
+  useEffect(() => {
+    const loadMembers = async () => {
+      if (!projectId) return;
+      const project = projects[projectId];
+      if (!project) return;
+
+      const memberUids = new Set<string>(project.memberIds || []);
+      
+      // Add team members
+      if (project.teamIds) {
+        project.teamIds.forEach(teamId => {
+          const team = teams.find(t => t.id === teamId);
+          if (team) {
+            team.memberIds.forEach(uid => memberUids.add(uid));
+          }
+        });
+      }
+
+      const profiles = await userService.getUsersByIds(Array.from(memberUids));
+      setProjectMembers(profiles);
+    };
+
+    loadMembers();
+  }, [projectId, projects, teams]);
   const projectList = useMemo(() => Object.values(projects), [projects]);
 
   const isEditMode = !!initialData;
@@ -95,6 +128,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setStoryPoints(initialData.storyPoints?.toString() || "");
         setSubtasks(initialData.subtasks || []);
         setComments(initialData.comments || []);
+        setAssignedTo(initialData.assignedTo || "");
         currentTaskId.current = initialData.id;
       } else {
         setTitle("");
@@ -108,6 +142,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setProjectId(activeProjectId && activeProjectId !== "all" ? activeProjectId : projectList[0]?.id || "");
         setSprintId(activeSprintId || "");
         setBoardId(activeBoardId || "");
+        setAssignedTo("");
         currentTaskId.current = "new";
       }
       
@@ -149,6 +184,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
           storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
           subtasks,
           comments,
+          assignedTo: assignedTo || undefined,
         });
       } finally {
         setTimeout(() => setIsSaving(false), 500);
@@ -157,7 +193,26 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
     const timeout = setTimeout(saveChanges, 500);
     return () => clearTimeout(timeout);
-  }, [title, description, status, priority, dueDate, projectId, sprintId, boardId, storyPoints, subtasks, comments]);
+  }, [title, description, status, priority, dueDate, projectId, sprintId, boardId, storyPoints, subtasks, comments, assignedTo]);
+
+  // Task Assignment Notification
+  useEffect(() => {
+    if (!open || !hasLoadedInitial.current || !assignedTo) return;
+    if (assignedTo === user?.uid) return;
+    if (assignedTo === initialData?.assignedTo) return;
+    if (assignedTo === lastNotifiedAssignee.current) return;
+
+    sendNotification({
+      type: 'task_assigned',
+      toUid: assignedTo,
+      taskId: initialData?.id || "new",
+      taskTitle: title.trim(),
+      projectId,
+      projectName: projects[projectId]?.title
+    });
+    
+    lastNotifiedAssignee.current = assignedTo;
+  }, [assignedTo, open, user?.uid, initialData?.id, initialData?.assignedTo, projectId, projects, title, sendNotification]);
 
   const handleSave = () => {
     if (!title.trim() || !projectId) return;
@@ -174,6 +229,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
       subtasks,
       comments,
+      assignedTo: assignedTo || undefined,
     });
 
     onClose();
@@ -607,12 +663,16 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       <User className="h-3.5 w-3.5" />
                       <span className="text-[10px] font-bold uppercase tracking-wider">Assignee</span>
                     </div>
-                    <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl group cursor-pointer hover:border-primary/30 transition-colors">
-                      <div className="h-5 w-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[9px] font-black">
-                        {initialData?.assignedTo?.charAt(0).toUpperCase() || <User className="h-3 w-3" />}
-                      </div>
-                      <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{initialData?.assignedTo || "Unassigned"}</span>
-                    </div>
+                    <select
+                      value={assignedTo}
+                      onChange={(e) => setAssignedTo(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                    >
+                      <option value="">Unassigned</option>
+                      {projectMembers.map(m => (
+                        <option key={m.uid} value={m.uid}>{m.displayName || m.username}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Priority */}

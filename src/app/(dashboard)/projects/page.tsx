@@ -6,6 +6,8 @@ import { useProjectStore } from "@/store/useProjectStore";
 import { useRouter } from "next/navigation";
 import { toast } from "@/store/useToastStore";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
+import { ShareProjectModal } from "@/components/project/ShareProjectModal";
+import { UserPlus } from "lucide-react";
 
 
 import * as DialogPrimitive from "@radix-ui/react-dialog";
@@ -32,6 +34,8 @@ export default function ProjectsPage() {
   const [newDesc, setNewDesc] = useState("");
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [deleteProjectId, setDeleteProjectId] = useState<string | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [sharingProject, setSharingProject] = useState<any>(null);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +74,13 @@ export default function ProjectsPage() {
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     setDeleteProjectId(id);
+    setOpenDropdown(null);
+  };
+
+  const openShareModal = (e: React.MouseEvent, p: any) => {
+    e.stopPropagation();
+    setSharingProject(p);
+    setIsShareModalOpen(true);
     setOpenDropdown(null);
   };
 
@@ -145,6 +156,13 @@ export default function ProjectsPage() {
                       >
                         <Pencil className="h-3 w-3" />
                         Edit
+                      </button>
+                      <button
+                        onClick={(e) => openShareModal(e, project)}
+                        className="w-full text-left px-3 py-2 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        <UserPlus className="h-3 w-3" />
+                        Share
                       </button>
                       <button
                         onClick={(e) => handleDelete(e, project.id)}
@@ -242,6 +260,12 @@ export default function ProjectsPage() {
         onConfirm={confirmDeleteProject}
         title="Delete Workspace?"
         description="Are you sure you want to delete this workspace? All tasks inside will be permanently removed. This cannot be undone."
+      />
+
+      <ShareProjectModal 
+        open={isShareModalOpen}
+        onOpenChange={setIsShareModalOpen}
+        project={sharingProject}
       />
     </div>
 

@@ -11,6 +11,8 @@ import { useRouter } from "next/navigation";
 import Cookies from "js-cookie";
 import { useProjectStore } from "@/store/useProjectStore";
 import { useKanbanStore } from "@/store/useTaskStore";
+import { useNotificationStore } from "@/store/useNotificationStore";
+import { NotificationDropdown } from "./NotificationDropdown";
 
 
 export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
@@ -20,6 +22,13 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
   const user = useAuthStore((state) => state.user);
   const { searchQuery, setSearchQuery, tasks } = useKanbanStore();
   const { projects, activeProjectId, setActiveProject } = useProjectStore();
+  const { unreadCount, fetchNotifications } = useNotificationStore();
+
+  const [notificationOpen, setNotificationOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   const router = useRouter();
 
@@ -201,10 +210,24 @@ export function TopBar({ onMenuClick }: { onMenuClick?: () => void }) {
     <div className="flex items-center gap-4">
 
 
-        <button className="hidden sm:flex h-8 w-8 items-center justify-center rounded-full hover:bg-secondary transition-colors relative">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full border-2 border-background bg-destructive"></span>
+      <div className="relative">
+        <button 
+          onClick={() => setNotificationOpen(!notificationOpen)}
+          className={`hidden sm:flex h-8 w-8 items-center justify-center rounded-full hover:bg-secondary transition-colors relative ${notificationOpen ? 'bg-secondary' : ''}`}
+        >
+          <Bell className={`h-5 w-5 ${notificationOpen ? 'text-primary' : 'text-muted-foreground'}`} />
+          {unreadCount > 0 && (
+            <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full border-2 border-background bg-destructive"></span>
+          )}
         </button>
+        
+        {notificationOpen && (
+          <>
+            <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setNotificationOpen(false)} />
+            <NotificationDropdown onClose={() => setNotificationOpen(false)} />
+          </>
+        )}
+      </div>
         
         <div className="h-4 w-[1px] bg-border mx-2" />
 
