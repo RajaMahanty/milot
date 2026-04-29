@@ -56,6 +56,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [newComment, setNewComment] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
+  const [isAIDescriptionProcessing, setIsAIDescriptionProcessing] = useState(false);
   const hasLoadedInitial = useRef(false);
 
   const currentTaskId = useRef<string | null>(null);
@@ -219,17 +220,51 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       });
       const data = await response.json();
       if (data.substeps && Array.isArray(data.substeps)) {
-        const newSubs = data.substeps.map((text: string) => ({
-          id: crypto.randomUUID(),
-          title: text,
-          completed: false
-        }));
-        setSubtasks([...subtasks, ...newSubs]);
+        const existingTitles = new Set(subtasks.map(s => s.title.toLowerCase().trim()));
+        const uniqueNewSubs = data.substeps
+          .filter((text: string) => !existingTitles.has(text.toLowerCase().trim()))
+          .map((text: string) => ({
+            id: crypto.randomUUID(),
+            title: text,
+            completed: false
+          }));
+          
+        if (uniqueNewSubs.length > 0) {
+          setSubtasks([...subtasks, ...uniqueNewSubs]);
+          toast.success("AI generated new subtasks!");
+        } else {
+          toast.info("AI generated identical subtasks. No duplicates added.");
+        }
       }
     } catch (error) {
       console.error("AI Generation failed", error);
     } finally {
       setIsAIProcessing(false);
+    }
+  };
+
+  const generateAIDescription = async () => {
+    if (!title.trim()) {
+      toast.warning("Please enter a title first to generate a description.");
+      return;
+    }
+    setIsAIDescriptionProcessing(true);
+    try {
+      const response = await fetch("/api/ai/description", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, description }),
+      });
+      const data = await response.json();
+      if (data.description) {
+        setDescription(data.description);
+        toast.success(description ? "Description refined via AI!" : "Description generated via AI!");
+      }
+    } catch (error) {
+      console.error("AI Description Generation failed", error);
+      toast.error("Failed to process description via AI.");
+    } finally {
+      setIsAIDescriptionProcessing(false);
     }
   };
 
@@ -304,9 +339,23 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
               {/* Description Section */}
               <div className="space-y-3">
-                <div className="flex items-center gap-2 text-slate-500">
-                  <AlignLeft className="h-4 w-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Description</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-500">
+                    <AlignLeft className="h-4 w-4" />
+                    <span className="text-xs font-bold uppercase tracking-wider">Description</span>
+                  </div>
+                  <button
+                    onClick={generateAIDescription}
+                    disabled={isAIDescriptionProcessing || !title.trim()}
+                    className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter transition-all shadow-sm ${
+                      isAIDescriptionProcessing 
+                      ? 'bg-primary/20 text-primary animate-pulse cursor-wait' 
+                      : 'bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95'
+                    } disabled:opacity-50 disabled:pointer-events-none`}
+                  >
+                    <Zap className={`h-2.5 w-2.5 ${isAIDescriptionProcessing ? 'animate-bounce' : ''}`} />
+                    {isAIDescriptionProcessing ? 'Thinking...' : description.trim() ? 'AI Refine' : 'AI Generate'}
+                  </button>
                 </div>
                 <div className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus-within:border-primary/30 transition-colors">
                   <textarea

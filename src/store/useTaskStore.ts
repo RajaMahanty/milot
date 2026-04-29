@@ -89,15 +89,21 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       const dbTasks = await taskService.fetchTasks(user.uid, activeProjectId);
       const cols = JSON.parse(JSON.stringify(defaultColumns));
 
-      // Populate columns based on tasks
+      const projects = useProjectStore.getState().projects;
+      const validDbTasks: Record<string, any> = {};
+
+      // Filter out orphaned tasks and populate columns
       Object.keys(dbTasks).forEach(taskId => {
         const t = dbTasks[taskId];
-        if (cols[t.status]) {
-          cols[t.status].taskIds.push(t.id);
+        if (projects[t.projectId]) {
+          validDbTasks[taskId] = t;
+          if (cols[t.status]) {
+            cols[t.status].taskIds.push(t.id);
+          }
         }
       });
 
-      set({ tasks: dbTasks, columns: cols, isLoading: false });
+      set({ tasks: validDbTasks, columns: cols, isLoading: false });
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to fetch tasks from database.");
@@ -205,6 +211,10 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
       const colId = task.status;
       const col = state.columns[colId];
+
+      if (!col) {
+        return { tasks: newTasks };
+      }
 
       const updatedColumns = {
         ...state.columns,

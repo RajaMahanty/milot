@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 
 export default function BacklogPage() {
-  const { tasks, fetchTasks, addTask, editTask, deleteTask, searchQuery, setSearchQuery } = useKanbanStore();
+  const { tasks, fetchTasks, addTask, editTask, deleteTask } = useKanbanStore();
   const { user } = useAuthStore();
   const { projects, activeProjectId } = useProjectStore();
 
@@ -33,10 +33,12 @@ export default function BacklogPage() {
 
 
   const [showDone, setShowDone] = useState(false);
+  const [filterProjectId, setFilterProjectId] = useState<string>("all");
   const [activeTab, setActiveTab] = useState<"active" | "archived">("active");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeEditTask, setActiveEditTask] = useState<Task | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [localSearchQuery, setLocalSearchQuery] = useState("");
 
   useEffect(() => {
     if (user?.uid) {
@@ -111,10 +113,19 @@ export default function BacklogPage() {
     }
 
     // Search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (localSearchQuery.trim()) {
+      const query = localSearchQuery.toLowerCase();
+      const projectName = projects[task.projectId]?.title?.toLowerCase() || "";
       if (!task.title.toLowerCase().includes(query) &&
-        !(task.description && task.description.toLowerCase().includes(query))) {
+        !(task.description && task.description.toLowerCase().includes(query)) &&
+        !projectName.includes(query)) {
+        return false;
+      }
+    }
+
+    // Project Dropdown filter
+    if (showWorkspace && filterProjectId !== "all") {
+      if (task.projectId !== filterProjectId) {
         return false;
       }
     }
@@ -169,18 +180,35 @@ export default function BacklogPage() {
       </div>
 
       {/* Toolbar */}
-      <div className="flex items-center gap-4 bg-card border border-border rounded-2xl p-4 shadow-soft">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-card border border-border rounded-2xl p-4 shadow-soft">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search backlog..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search tasks, descriptions, or workspaces..."
+            value={localSearchQuery}
+            onChange={(e) => setLocalSearchQuery(e.target.value)}
             className="w-full h-10 rounded-xl bg-secondary/50 border-none pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
           />
         </div>
-        <div className="h-6 w-[1px] bg-border mx-2" />
+        
+        {showWorkspace && (
+          <div className="relative min-w-[180px]">
+            <select
+              value={filterProjectId}
+              onChange={(e) => setFilterProjectId(e.target.value)}
+              className="w-full h-10 rounded-xl bg-secondary/50 border-none px-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer"
+            >
+              <option value="all">All Workspaces</option>
+              {Object.values(projects).map(p => (
+                <option key={p.id} value={p.id}>{p.title}</option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          </div>
+        )}
+
+        <div className="hidden sm:block h-6 w-[1px] bg-border mx-1" />
         <button
           onClick={() => setShowDone(!showDone)}
           className={`text-xs font-bold px-3 py-1.5 rounded transition-all ${showDone
@@ -197,8 +225,7 @@ export default function BacklogPage() {
         <table className="w-full text-left text-sm">
           <thead className="bg-secondary/40 border-b border-border text-[10px] uppercase font-bold text-muted-foreground tracking-wider">
             <tr>
-              <th className="px-6 py-4">Title</th>
-              {showWorkspace && <th className="px-6 py-4">Workspace</th>}
+              <th className="px-6 py-4">Task</th>
               <th className="px-6 py-4">Status</th>
               <th className="px-6 py-4">Priority</th>
               <th className="px-6 py-4">Assignee</th>
@@ -215,20 +242,19 @@ export default function BacklogPage() {
                   >
                     <div className="flex items-start gap-3">
                       <div className="h-2 w-2 rounded-full bg-primary/30 mt-1.5 flex-shrink-0" />
-                      <div className="overflow-hidden">
+                      <div className="overflow-hidden flex-1">
                         <p className="font-bold text-foreground group-hover:text-primary transition-colors truncate">{task.title}</p>
-                        <p className="text-[10px] text-neutral-muted truncate max-w-full">{task.description}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          {showWorkspace && (
+                            <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[8px] font-bold text-primary uppercase tracking-wider whitespace-nowrap">
+                              {projects[task.projectId]?.title || "Unknown"}
+                            </span>
+                          )}
+                          <p className="text-[10px] text-neutral-muted truncate">{task.description}</p>
+                        </div>
                       </div>
                     </div>
                   </td>
-
-                  {showWorkspace && (
-                    <td className="px-6 py-4">
-                      <span className="inline-flex items-center rounded-lg border border-primary/20 bg-primary/5 px-2 py-0.5 text-[10px] font-bold text-primary">
-                        {projects[task.projectId]?.title || "Unknown"}
-                      </span>
-                    </td>
-                  )}
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-[10px] font-bold capitalize ${statusColors[task.status]}`}>
                       {task.status.replace('-', ' ')}
@@ -285,10 +311,10 @@ export default function BacklogPage() {
                       <Search className="h-6 w-6 opacity-20" />
                     </div>
                     <p className="font-bold text-foreground">
-                      {searchQuery ? "No matches found" : "Backlog is empty"}
+                      {localSearchQuery ? "No matches found" : "Backlog is empty"}
                     </p>
                     <p className="text-xs">
-                      {searchQuery ? "Try a different search term." : "Congratulations! You've triaged all pending work."}
+                      {localSearchQuery ? "Try a different search term." : "Congratulations! You've triaged all pending work."}
                     </p>
                   </div>
                 </td>
