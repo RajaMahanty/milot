@@ -58,6 +58,7 @@ export default function ProfilePage() {
   // Public Profile Modal States
   const [publicProfileModal, setPublicProfileModal] = useState<{ isOpen: boolean, username: string }>({ isOpen: false, username: '' });
   const [publicProfile, setPublicProfile] = useState<UserProfile | null>(null);
+  const [publicTaskStats, setPublicTaskStats] = useState({ completed: 0 });
   const [isPublicProfileLoading, setIsPublicProfileLoading] = useState(false);
 
   useEffect(() => {
@@ -195,9 +196,15 @@ export default function ProfilePage() {
   const handleOpenPublicProfile = async (username: string) => {
     setPublicProfileModal({ isOpen: true, username });
     setIsPublicProfileLoading(true);
+    setPublicTaskStats({ completed: 0 });
     try {
       const data = await userService.getProfileByUsername(username);
       setPublicProfile(data);
+      if (data) {
+        const tasksRecord = await taskService.fetchTasks(data.uid, "all");
+        const completed = Object.values(tasksRecord).filter(t => t.status === "done" || t.status === "archived").length;
+        setPublicTaskStats({ completed });
+      }
     } catch (error) {
       toast.error("Failed to load user profile");
       setPublicProfileModal({ isOpen: false, username: '' });
@@ -217,7 +224,7 @@ export default function ProfilePage() {
   };
 
   const taskStats = React.useMemo(() => {
-     const completed = allTasks.filter(t => t.status === "done").length;
+     const completed = allTasks.filter(t => t.status === "done" || t.status === "archived").length;
      return {
         total: allTasks.length,
         completed: completed,
@@ -555,6 +562,9 @@ export default function ProfilePage() {
                               <div className="flex flex-wrap items-center justify-center md:justify-start gap-3">
                                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground bg-secondary/50 px-2 py-1 rounded">
                                     Joined {new Date(publicProfile.createdAt).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}
+                                 </span>
+                                 <span className="text-[10px] font-bold uppercase tracking-wider text-primary bg-primary/5 px-2 py-1 rounded">
+                                    {publicTaskStats.completed} Tasks Completed
                                  </span>
                                  <span 
                                     onClick={() => publicProfile?.followers?.length && handleOpenNetworkModal('followers', publicProfile)}

@@ -54,7 +54,7 @@ interface KanbanState {
   assignTasksToSprint: (taskIds: string[], sprintId: string | null) => Promise<void>;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  completeSprint: () => Promise<void>;
+  completeSprint: (sprintId?: string) => Promise<void>;
 }
 
 
@@ -326,48 +326,60 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
   },
 
-  completeSprint: async () => {
-    // Collect all done tasks
+  completeSprint: async (sprintId?: string) => {
     const state = get();
-    const doneTaskIds = state.columns["done"]?.taskIds || [];
-
     const { useSprintStore } = require('./useSprintStore');
-    const activeSprintId = useSprintStore.getState().activeSprintId;
+    const targetSprintId = sprintId || useSprintStore.getState().activeSprintId;
 
-    if (doneTaskIds.length === 0) return;
+    if (!targetSprintId) return;
+
+    const doneTaskIds = state.columns["done"]?.taskIds || [];
+    const sprintDoneTaskIds = doneTaskIds.filter(id => state.tasks[id]?.sprintId === targetSprintId);
 
     // Optimistic UI Update: Move done tasks to archived and clear done column
-    set((currentState) => {
-      const newTasks = { ...currentState.tasks };
-      doneTaskIds.forEach(id => {
-        if (newTasks[id]) {
-          newTasks[id] = { ...newTasks[id], status: "archived" };
-        }
+    if (sprintDoneTaskIds.length > 0) {
+      set((currentState) => {
+        const newTasks = { ...currentState.tasks };
+        sprintDoneTaskIds.forEach(id => {
+          if (newTasks[id]) {
+            newTasks[id] = { ...newTasks[id], status: "archived" };
+          }
+        });
+
+        return {
+          tasks: newTasks,
+          columns: {
+            ...currentState.columns,
+            "done": {
+              ...currentState.columns["done"],
+              taskIds: currentState.columns["done"].taskIds.filter(id => !sprintDoneTaskIds.includes(id))
+            }
+          }
+        };
       });
 
-      return {
-        tasks: newTasks,
-        columns: {
-          ...currentState.columns,
-          "done": { ...currentState.columns["done"], taskIds: [] }
-        }
-      };
-    });
+      // Background Firebase Updates using Promise.all
+      try {
+        await Promise.all(
+          sprintDoneTaskIds.map(id => taskService.updateTask(id, { status: "archived" as any }))
+        );
+      } catch (err: any) {
+        console.error(err);
+        toast.error("Failed to archive tasks.");
+      }
+    }
 
-    // Background Firebase Updates using Promise.all
+    // Complete the sprint
     try {
-      await Promise.all(
-        doneTaskIds.map(id => taskService.updateTask(id, { status: "archived" as any }))
-      );
+      await useSprintStore.getState().updateSprint(targetSprintId, { status: 'completed' });
 
-      // Also complete the sprint in the sprint store if one was active
-      if (activeSprintId) {
-        await useSprintStore.getState().completeActiveSprint();
+      // If the completed sprint was the globally active one, clear it
+      if (useSprintStore.getState().activeSprintId === targetSprintId) {
+        useSprintStore.setState({ activeSprintId: null });
       }
     } catch (err: any) {
       console.error(err);
-      toast.error("Failed to archive tasks.");
+      toast.error("Failed to complete sprint.");
     }
-
   },
 }));

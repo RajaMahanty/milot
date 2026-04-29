@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { useProjectStore } from "@/store/useProjectStore";
+import { useSprintStore } from "@/store/useSprintStore";
 import { Task, SubTask, Comment } from "@/store/useTaskStore";
 import {
   CheckCircle2,
@@ -25,7 +26,8 @@ import {
   AlignLeft,
   ChevronRight,
   Trash2,
-  MessageSquare
+  MessageSquare,
+  Layers
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "@/store/useToastStore";
@@ -41,9 +43,11 @@ type Props = {
 export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [status, setStatus] = useState<"todo" | "in-progress" | "done" | "archived">("todo");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState("");
   const [projectId, setProjectId] = useState<string>("");
+  const [sprintId, setSprintId] = useState<string>("");
   const [storyPoints, setStoryPoints] = useState<string>("");
 
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
@@ -57,6 +61,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const currentTaskId = useRef<string | null>(null);
 
   const { projects, activeProjectId } = useProjectStore();
+  const { sprints, activeSprintId } = useSprintStore();
   const { user } = useAuthStore();
   const projectList = useMemo(() => Object.values(projects), [projects]);
 
@@ -74,9 +79,11 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       if (initialData) {
         setTitle(initialData.title);
         setDescription(initialData.description || "");
+        setStatus(initialData.status || "todo");
         setPriority(initialData.priority || "medium");
         setDueDate(initialData.dueDate || "");
         setProjectId(initialData.projectId);
+        setSprintId(initialData.sprintId || "");
         setStoryPoints(initialData.storyPoints?.toString() || "");
         setSubtasks(initialData.subtasks || []);
         setComments(initialData.comments || []);
@@ -84,12 +91,14 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       } else {
         setTitle("");
         setDescription("");
+        setStatus("todo");
         setPriority("medium");
         setDueDate("");
         setStoryPoints("");
         setSubtasks([]);
         setComments([]);
         setProjectId(activeProjectId && activeProjectId !== "all" ? activeProjectId : projectList[0]?.id || "");
+        setSprintId(activeSprintId || "");
         currentTaskId.current = "new";
       }
       
@@ -122,9 +131,11 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         await onSave({
           title: title.trim(),
           description: description.trim() || undefined,
+          status,
           priority,
           dueDate: dueDate || undefined,
           projectId: projectId,
+          sprintId: sprintId || undefined,
           storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
           subtasks,
           comments,
@@ -136,7 +147,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
     const timeout = setTimeout(saveChanges, 500);
     return () => clearTimeout(timeout);
-  }, [title, description, priority, dueDate, projectId, storyPoints, subtasks, comments]);
+  }, [title, description, status, priority, dueDate, projectId, sprintId, storyPoints, subtasks, comments]);
 
   const handleSave = () => {
     if (!title.trim() || !projectId) return;
@@ -144,9 +155,11 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     onSave({
       title: title.trim(),
       description: description.trim() || undefined,
+      status,
       priority,
       dueDate: dueDate || undefined,
       projectId: projectId,
+      sprintId: sprintId || undefined,
       storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
       subtasks,
       comments,
@@ -450,14 +463,20 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
               {/* Status Section */}
               <div className="space-y-3">
                 <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Status</span>
-                <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl">
-                  <div className={`h-2 w-2 rounded-full ${initialData?.status === 'done' ? 'bg-emerald-500' :
-                    initialData?.status === 'in-progress' ? 'bg-blue-500' : 'bg-slate-400'
-                    }`} />
-                  <span className="text-xs font-bold capitalize text-slate-700 dark:text-slate-300">
-                    {initialData?.status?.replace('-', ' ') || 'Todo'}
-                  </span>
-                </div>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as any)}
+                  className={`w-full flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-bold outline-none transition-colors appearance-none ${
+                    status === 'done' ? 'text-emerald-600 dark:text-emerald-400 border-emerald-100 bg-emerald-50/50' :
+                    status === 'in-progress' ? 'text-blue-600 dark:text-blue-400 border-blue-100 bg-blue-50/50' :
+                    'text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <option value="todo">To Do</option>
+                  <option value="in-progress">In Progress</option>
+                  <option value="done">Done</option>
+                  <option value="archived">Archived</option>
+                </select>
               </div>
 
               {/* Metadata Fields Grid */}
@@ -479,6 +498,26 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       <option value="" disabled>Select Project</option>
                       {projectList.map(p => (
                         <option key={p.id} value={p.id}>{p.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sprint Field */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <Layers className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Sprint</span>
+                    </div>
+                    <select
+                      value={sprintId}
+                      onChange={(e) => setSprintId(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                    >
+                      <option value="">Backlog (No Sprint)</option>
+                      {sprints
+                        .filter(s => s.projectId === projectId)
+                        .map(s => (
+                          <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
                       ))}
                     </select>
                   </div>

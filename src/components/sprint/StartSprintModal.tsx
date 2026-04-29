@@ -54,7 +54,7 @@ export function StartSprintModal({ open, onOpenChange, onStart }: Props) {
              <div className="h-10 w-10 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-500">
                 <Zap className="h-5 w-5" />
              </div>
-             Start New Sprint
+             Add New Sprint
           </DialogPrimitive.Title>
           
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -114,7 +114,7 @@ export function StartSprintModal({ open, onOpenChange, onStart }: Props) {
                 type="submit"
                 className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold shadow-elevated hover:opacity-90 transition-opacity active:scale-95"
               >
-                Start Sprint
+                Add Sprint
               </button>
             </div>
           </form>

@@ -16,19 +16,28 @@ export type Sprint = {
 };
 
 export const sprintService = {
-  // Fetch sprints for a project
-  async fetchSprints(projectId: string): Promise<Sprint[]> {
-    const q = query(
-      collection(db, SPRINTS_COLLECTION), 
-      where("projectId", "==", projectId),
-      orderBy("createdAt", "desc")
-    );
+  async fetchSprints(uid: string, projectId: string): Promise<Sprint[]> {
+    let q;
+    if (projectId && projectId !== "all") {
+      q = query(
+        collection(db, SPRINTS_COLLECTION), 
+        where("uid", "==", uid),
+        where("projectId", "==", projectId)
+      );
+    } else {
+      q = query(
+        collection(db, SPRINTS_COLLECTION), 
+        where("uid", "==", uid)
+      );
+    }
     const querySnapshot = await getDocs(q);
     const sprints: Sprint[] = [];
     querySnapshot.forEach((doc) => {
       sprints.push(doc.data() as Sprint);
     });
-    return sprints;
+    
+    // Sort by createdAt desc in memory to avoid needing composite indexes
+    return sprints.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
   // Create a new sprint

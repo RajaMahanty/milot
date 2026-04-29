@@ -12,8 +12,9 @@ interface SprintState {
   error: string | null;
   
   fetchSprints: () => Promise<void>;
-  startSprint: (data: Omit<Sprint, 'id' | 'projectId' | 'uid' | 'status' | 'createdAt'>) => Promise<void>;
+  createSprint: (data: Omit<Sprint, 'id' | 'projectId' | 'uid' | 'status' | 'createdAt'>) => Promise<void>;
   updateSprint: (id: string, updates: Partial<Sprint>) => Promise<void>;
+  activateSprint: (id: string) => Promise<void>;
   completeActiveSprint: () => Promise<void>;
 }
 
@@ -24,15 +25,16 @@ export const useSprintStore = create<SprintState>((set, get) => ({
   error: null,
 
   fetchSprints: async () => {
+    const user = useAuthStore.getState().user;
     const activeProjectId = useProjectStore.getState().activeProjectId;
-    if (!activeProjectId) {
+    if (!user || !activeProjectId) {
       set({ sprints: [], activeSprintId: null });
       return;
     }
 
     set({ isLoading: true, error: null });
     try {
-      const fetchedSprints = await sprintService.fetchSprints(activeProjectId);
+      const fetchedSprints = await sprintService.fetchSprints(user.uid, activeProjectId);
       const activeSprint = fetchedSprints.find(s => s.status === 'active');
       set({ 
         sprints: fetchedSprints, 
@@ -45,25 +47,21 @@ export const useSprintStore = create<SprintState>((set, get) => ({
     }
   },
 
-  startSprint: async (data) => {
+  createSprint: async (data) => {
     const user = useAuthStore.getState().user;
     const activeProjectId = useProjectStore.getState().activeProjectId;
     
-    if (!user || !activeProjectId) return;
-
-    // Check if there is already an active sprint
-    if (get().activeSprintId) {
-      toast.warning("An active sprint already exists.");
+    if (!user || (!activeProjectId || activeProjectId === "all")) {
+      toast.warning("Please select a specific project first.");
       return;
     }
-
 
     const newSprint: Sprint = {
       ...data,
       id: crypto.randomUUID(),
       projectId: activeProjectId,
       uid: user.uid,
-      status: 'active',
+      status: 'planned',
       createdAt: new Date().toISOString()
     };
 
@@ -72,7 +70,6 @@ export const useSprintStore = create<SprintState>((set, get) => ({
       await sprintService.createSprint(newSprint);
       set((state) => ({
         sprints: [newSprint, ...state.sprints],
-        activeSprintId: newSprint.id,
         isLoading: false
       }));
     } catch (err: any) {
@@ -85,8 +82,28 @@ export const useSprintStore = create<SprintState>((set, get) => ({
     set({ isLoading: true });
     try {
       await sprintService.updateSprint(id, updates);
+      set((state) => {
+        const updatedSprints = state.sprints.map(s => s.id === id ? { ...s, ...updates } : s);
+        const activeSprint = updatedSprints.find(s => s.status === 'active');
+        return {
+          sprints: updatedSprints,
+          activeSprintId: activeSprint ? activeSprint.id : null,
+          isLoading: false
+        };
+      });
+    } catch (err: any) {
+      console.error(err);
+      set({ error: err.message, isLoading: false });
+    }
+  },
+
+  activateSprint: async (id) => {
+    set({ isLoading: true });
+    try {
+      await sprintService.updateSprint(id, { status: 'active' });
       set((state) => ({
-        sprints: state.sprints.map(s => s.id === id ? { ...s, ...updates } : s),
+        sprints: state.sprints.map(s => s.id === id ? { ...s, status: 'active' } : s),
+        activeSprintId: id,
         isLoading: false
       }));
     } catch (err: any) {
