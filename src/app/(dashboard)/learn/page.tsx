@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  BookOpen,
   Columns,
   FolderKanban,
   CheckSquare,
@@ -18,6 +17,13 @@ import {
   Sparkles,
   Search,
 } from "lucide-react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 interface Module {
   id: string;
@@ -55,17 +61,17 @@ const modules: Module[] = [
       {
         heading: "Multiple boards",
         content:
-          "Each project can have multiple boards (tabs at the top). Use them to organize work into categories — for example, \"Frontend\" and \"Backend\" boards. Drag a card onto a different board tab to transfer it.",
+          "Each project can have multiple boards (tabs at the top). Use them to organize work into categories such as Frontend and Backend. Drag a card onto a different board tab to transfer it.",
       },
       {
         heading: "Inline editing",
         content:
-          "Double-click any card title on the board to edit it directly. Press Enter to save, Escape to cancel. Single-click opens the full task modal.",
+          "Double-click a task title on the board to edit it directly. Press Enter to save and Escape to cancel. Single-click opens the full task modal for details.",
       },
       {
         heading: "Filters",
         content:
-          "Filter cards by priority, assignee, or shared workspaces using the filter bar. Switch between Board and List view from the View dropdown.",
+          "Filter cards by priority, assignee, or project using the filter bar. Switch between Board and List view from the View dropdown for the layout you need.",
       },
     ],
   },
@@ -77,17 +83,17 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "Projects are workspaces. Each one has its own boards, tasks, sprints, and team members. Switch between them using the dropdown in the top navigation bar. Select \"All Workspaces\" to see everything at once.",
+          "Projects are workspaces with their own boards, tasks, sprints, and team members. Switch between them using the project selector in the top navigation bar.",
       },
       {
         heading: "Sharing",
         content:
-          "Open a project and click the share icon to invite members by email. They receive a notification and can accept to gain access. Shared members see the same boards and tasks as the owner.",
+          "Open a project and click the share icon to invite members by email. Shared members see the same boards, tasks, and updates as the owner.",
       },
       {
         heading: "Deletion",
         content:
-          "Deleting a project also removes all its tasks, boards, and sprints. This is permanent and cannot be undone.",
+          "Deleting a project also removes its tasks, boards, and sprints. This action is permanent, so confirm carefully before proceeding.",
       },
     ],
   },
@@ -99,7 +105,7 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "Shows every task assigned to you across all projects, grouped by status. Think of it as your personal inbox — a single view to answer \"what should I work on next?\" without switching between workspaces.",
+          "My Tasks shows every task assigned to you across all projects, grouped by status. Use it as your personal action list to answer 'what should I work on next?'.",
       },
     ],
   },
@@ -111,7 +117,7 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "A flat table of all tasks in the current project. Unlike the board view, it shows everything in a compact list format — useful for bulk planning, reviewing priorities, and assigning story points before a sprint.",
+          "The Backlog displays all tasks in the current project as a compact list. It's ideal for bulk planning, prioritizing, and assigning story points before sprint planning.",
       },
     ],
   },
@@ -123,12 +129,12 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "Sprints are time-boxed work cycles (typically 1-2 weeks). Create a sprint with a name, goal, and date range. Then assign tasks to it from the task modal's Sprint dropdown.",
+          "Sprints are time-boxed work cycles, typically one or two weeks. Create a sprint with a name, goal, and date range, then assign tasks to it from the task modal.",
       },
       {
         heading: "Tracking",
         content:
-          "Each sprint shows a progress bar based on how many tasks are completed vs. remaining. Complete a sprint when the cycle ends — tasks don't need to all be done.",
+          "Each sprint shows progress based on completed versus remaining tasks. Close the sprint at the end of the cycle to review results and plan next work.",
       },
     ],
   },
@@ -140,7 +146,7 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "Create teams and invite members by email. Team members receive notifications to accept the invite. Link teams to projects so the right people have access to the right workspaces.",
+          "Create teams and invite members by email. Team membership ensures the right people have access to the right projects and updates.",
       },
     ],
   },
@@ -152,22 +158,22 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "Click any task card to open the full detail modal. It contains the title, description, subtasks, comments, priority, assignee, due date, sprint, story points, and project/board assignment.",
+          "The task modal surfaces title, description, subtasks, comments, priority, assignee, due date, sprint, story points, and project/board assignment in one view.",
       },
       {
         heading: "AI Refine Title",
         content:
-          "When a title is present, click the AI Refine button in the top-right corner of the title field. The AI rewrites it to be concise, professional, and actionable.",
+          "Click AI Refine to rewrite titles into concise, professional, actionable statements. This helps make work items easier to understand at a glance.",
       },
       {
         heading: "AI Generate Description",
         content:
-          "Next to the Description label, click AI Generate (or AI Refine if a description already exists). The AI writes or improves the description based on the task title.",
+          "Use AI Generate or AI Refine on the task description to create clear guidance based on the title and existing details.",
       },
       {
         heading: "AI Break Down Subtasks",
         content:
-          "In the Subtasks section, click AI Break Down. The AI analyzes the title and description and generates a set of actionable subtasks automatically.",
+          "Click AI Break Down to generate a set of actionable subtasks from your task title and description automatically.",
       },
     ],
   },
@@ -179,7 +185,7 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "Add comments in the Activity section of any task. Reply to existing comments to create threads. The task owner and any mentioned users are notified automatically.",
+          "Add comments in the Activity section for any task. Reply to comments to create threads and keep discussions organized.",
       },
     ],
   },
@@ -191,7 +197,7 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "Type @ in any comment or reply to trigger an autocomplete dropdown showing project members. Select a name to mention them. The mentioned user receives a notification with a link directly to the task.",
+          "Type @ in comments or replies to mention a team member. Mentions send notifications and link directly to the task for fast follow-up.",
       },
     ],
   },
@@ -203,12 +209,12 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "The bell icon in the top bar shows notifications for project invites, team invites, task assignments, comments, replies, and mentions. Unread notifications are highlighted.",
+          "The bell icon shows notifications for invites, assignments, comments, replies, and mentions. Unread items are highlighted for fast triage.",
       },
       {
         heading: "Navigation",
         content:
-          "Click any task-related notification to navigate directly to the board and auto-open the task modal. The correct project is selected automatically.",
+          "Click a task-related notification to open the correct board and task modal automatically.",
       },
     ],
   },
@@ -220,12 +226,12 @@ const modules: Module[] = [
       {
         heading: "Between columns",
         content:
-          "Drag a task card from one status column to another (e.g., TODO to IN PROGRESS). The status updates instantly.",
+          "Drag a task card between status columns to update its workflow stage instantly.",
       },
       {
         heading: "Between boards",
         content:
-          "While dragging a card, hover over a different board tab at the top. The tab highlights to indicate it's a valid drop target. Release to move the card to that board.",
+          "Hover over a board tab while dragging a card to move it to a different board. The target board highlights as a valid drop zone.",
       },
     ],
   },
@@ -237,7 +243,7 @@ const modules: Module[] = [
       {
         heading: "Overview",
         content:
-          "View and edit your display name and username. The Activity tab shows your recent task changes across all projects and statuses. Use the Network section to search for and follow other users.",
+          "Edit your display name and username, review recent activity, and build your network with the Search section.",
       },
     ],
   },
@@ -247,101 +253,171 @@ export default function LearnPage() {
   const [activeModule, setActiveModule] = useState<string>("dashboard");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const currentModule = modules.find((m) => m.id === activeModule) || modules[0];
+  const currentModule = useMemo(
+    () => modules.find((m) => m.id === activeModule) || modules[0],
+    [activeModule],
+  );
 
-  const filteredModules = searchQuery.trim()
-    ? modules.filter((m) =>
-        m.title.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : modules;
+  const filteredModules = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return modules;
+    return modules.filter((module) =>
+      module.title.toLowerCase().includes(query),
+    );
+  }, [searchQuery]);
+
+  const currentIndex = modules.findIndex((m) => m.id === currentModule.id);
+  const prevModule = currentIndex > 0 ? modules[currentIndex - 1] : null;
+  const nextModule =
+    currentIndex < modules.length - 1 ? modules[currentIndex + 1] : null;
 
   return (
-    <div className="flex h-full flex-col lg:flex-row">
-      {/* Left nav */}
-      <div className="w-full lg:w-56 shrink-0 border-b lg:border-b-0 lg:border-r border-border bg-card/30 overflow-y-auto no-scrollbar">
-        <div className="px-4 pt-5 pb-3">
-          <h2 className="text-base font-bold text-foreground mb-3">Documentation</h2>
+    <div className="flex min-h-full flex-col gap-6 lg:flex-row">
+      <aside className="w-full shrink-0 lg:w-80 xl:w-72">
+        <div className="sticky top-6 space-y-6 rounded-3xl border border-border bg-card/90 p-6 shadow-card">
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-muted-foreground">
+              Learn Center
+            </p>
+            <h1 className="text-3xl font-semibold tracking-tight text-foreground">
+              Task Matrix Guide
+            </h1>
+            <p className="text-sm leading-7 text-muted-foreground">
+              A practical reference for building clarity, staying aligned, and
+              using every workspace feature with confidence.
+            </p>
+          </div>
+
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
-              placeholder="Search..."
+              placeholder="Search modules"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-7 pr-3 py-1.5 rounded-lg border border-border bg-card text-xs focus:border-primary focus:outline-none"
+              className="w-full rounded-2xl border border-border bg-muted/70 py-3 pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/10"
             />
           </div>
-        </div>
 
-        <nav className="px-2 pb-4 space-y-px">
-          {filteredModules.map((m) => (
-            <button
-              key={m.id}
-              onClick={() => setActiveModule(m.id)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-sm font-medium transition-colors ${
-                activeModule === m.id
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground"
-              }`}
-            >
-              <span className="opacity-60">{m.icon}</span>
-              {m.title}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto no-scrollbar">
-        <div className="max-w-xl mx-auto px-6 py-8 lg:px-10 lg:py-12">
-          <h1 className="text-2xl font-bold text-foreground tracking-tight mb-1">
-            {currentModule.title}
-          </h1>
-          <div className="h-px bg-border mb-6" />
-
-          <div className="space-y-6">
-            {currentModule.sections.map((section, i) => (
-              <div key={i}>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground mb-2">
-                  {section.heading}
-                </h3>
-                <p className="text-sm text-foreground/80 leading-[1.8]">
-                  {section.content}
-                </p>
-              </div>
+          <nav className="grid gap-2">
+            {filteredModules.map((module) => (
+              <button
+                key={module.id}
+                type="button"
+                onClick={() => setActiveModule(module.id)}
+                className={`flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition duration-200 ${
+                  activeModule === module.id
+                    ? "bg-primary/10 text-primary"
+                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                }`}
+                aria-current={activeModule === module.id ? "page" : undefined}
+              >
+                <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
+                  {module.icon}
+                </span>
+                <span className="truncate">{module.title}</span>
+              </button>
             ))}
-          </div>
+          </nav>
+        </div>
+      </aside>
 
-          {/* Navigation hint */}
-          <div className="mt-10 pt-6 border-t border-border flex items-center justify-between">
-            {(() => {
-              const idx = modules.findIndex((m) => m.id === activeModule);
-              const prev = idx > 0 ? modules[idx - 1] : null;
-              const next = idx < modules.length - 1 ? modules[idx + 1] : null;
-              return (
-                <>
-                  {prev ? (
-                    <button
-                      onClick={() => setActiveModule(prev.id)}
-                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      ← {prev.title}
-                    </button>
-                  ) : <span />}
-                  {next ? (
-                    <button
-                      onClick={() => setActiveModule(next.id)}
-                      className="text-sm text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      {next.title} →
-                    </button>
-                  ) : <span />}
-                </>
-              );
-            })()}
+      <main className="flex-1">
+        <div className="mx-auto max-w-6xl px-6 pb-10 pt-4 lg:px-10 lg:pb-14">
+          <Card className="overflow-hidden">
+            <CardHeader className="flex flex-col gap-4 border-b border-border bg-muted/50 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-primary">
+                    {currentModule.icon}
+                  </span>
+                  {currentModule.title}
+                </div>
+                <CardTitle className="text-3xl font-semibold text-foreground">
+                  {currentModule.title}
+                </CardTitle>
+                <CardDescription className="max-w-2xl text-sm leading-6 text-muted-foreground">
+                  Use this guide to understand the main workflows for Task
+                  Matrix features. Each section is written for fast scanning and
+                  practical use.
+                </CardDescription>
+              </div>
+              <div className="rounded-3xl bg-secondary px-4 py-3 text-sm font-medium text-foreground">
+                Guided learning for every feature
+              </div>
+            </CardHeader>
+
+            <CardContent className="grid gap-6 px-6 py-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+              <div className="space-y-10">
+                {currentModule.sections.map((section) => (
+                  <section key={section.heading}>
+                    <h2 className="mb-3 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+                      {section.heading}
+                    </h2>
+                    <p className="text-base leading-8 text-foreground/95">
+                      {section.content}
+                    </p>
+                  </section>
+                ))}
+              </div>
+
+              <aside className="space-y-5 rounded-3xl border border-border bg-card/95 p-5 shadow-sm">
+                <div className="rounded-3xl bg-primary/5 p-4 text-sm leading-7 text-foreground">
+                  <p className="font-semibold text-primary">
+                    How to use this section
+                  </p>
+                  <p className="mt-2 text-muted-foreground">
+                    Read the feature overview first, then use the navigation
+                    links to move through related topics quickly.
+                  </p>
+                </div>
+                <div className="space-y-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.3em] text-muted-foreground">
+                    Best practices
+                  </p>
+                  <ul className="space-y-3 text-sm leading-7 text-foreground/90">
+                    <li>Keep task titles concise and outcome-focused.</li>
+                    <li>Use boards for workflow and backlog for planning.</li>
+                    <li>
+                      Invite team members to share visibility and reduce
+                      handoffs.
+                    </li>
+                  </ul>
+                </div>
+                <div className="rounded-3xl border border-border bg-secondary/75 p-4 text-sm text-muted-foreground">
+                  Tip: Search by feature name to jump directly to the workflow
+                  you want to master.
+                </div>
+              </aside>
+            </CardContent>
+          </Card>
+
+          <div className="mt-8 flex flex-col gap-3 rounded-3xl border border-border bg-card/90 p-5 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+            {prevModule ? (
+              <button
+                type="button"
+                onClick={() => setActiveModule(prevModule.id)}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                ← {prevModule.title}
+              </button>
+            ) : (
+              <div />
+            )}
+            {nextModule ? (
+              <button
+                type="button"
+                onClick={() => setActiveModule(nextModule.id)}
+                className="text-sm font-medium text-primary hover:underline"
+              >
+                {nextModule.title} →
+              </button>
+            ) : (
+              <div />
+            )}
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }

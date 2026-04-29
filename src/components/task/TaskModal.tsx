@@ -306,7 +306,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       )
     : [];
 
-  const insertMention = (member: UserProfile, currentText: string, setValue: (v: string) => void, ref: React.RefObject<HTMLTextAreaElement>) => {
+  const insertMention = (member: UserProfile, currentText: string, setValue: (v: string) => void, ref: React.RefObject<HTMLTextAreaElement | null>) => {
     const cursor = ref.current?.selectionStart ?? currentText.length;
     const textBefore = currentText.slice(0, cursor);
     const textAfter = currentText.slice(cursor);

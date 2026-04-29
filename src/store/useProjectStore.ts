@@ -16,7 +16,7 @@ interface ProjectState {
   error: string | null;
   
   fetchProjects: () => Promise<void>;
-  createProject: (project: Omit<Project, 'uid' | 'createdAt' | 'id'>) => Promise<void>;
+  createProject: (project: Omit<Project, 'uid' | 'createdAt' | 'id' | 'memberIds' | 'teamIds'>) => Promise<void>;
   setActiveProject: (projectId: string | null) => void;
   updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
@@ -64,7 +64,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
       const merged = { ...teamProjects, ...userProjects };
       const allFetchedProjects: Record<string, Project> = {};
-      Object.entries(merged)
+      (Object.entries(merged) as [string, Project][])
         .sort(([, a], [, b]) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         .forEach(([id, p]) => { allFetchedProjects[id] = p; });
       
