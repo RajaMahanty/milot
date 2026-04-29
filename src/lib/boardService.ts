@@ -15,16 +15,20 @@ export const boardService = {
   async fetchBoards(uid: string, projectId: string): Promise<Record<string, Board>> {
     const q = query(
       collection(db, BOARDS_COLLECTION),
-      where("uid", "==", uid),
-      where("projectId", "==", projectId),
-      orderBy("createdAt", "asc")
+      where("projectId", "==", projectId)
+      // Note: filtering by uid removed so invited members see project boards
     );
     const querySnapshot = await getDocs(q);
     const boards: Record<string, Board> = {};
     querySnapshot.forEach((doc) => {
       boards[doc.id] = doc.data() as Board;
     });
-    return boards;
+    // Sort in memory by createdAt
+    const sorted: Record<string, Board> = {};
+    Object.values(boards)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      .forEach(b => { sorted[b.id] = b; });
+    return sorted;
   },
 
   async createBoard(board: Board): Promise<void> {

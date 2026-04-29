@@ -5,6 +5,7 @@ import { Calendar, MessageSquare, Pencil, Trash2 } from "lucide-react";
 
 import { Task } from "@/store/useTaskStore";
 import { useProjectStore } from "@/store/useProjectStore";
+import { useAuthStore } from "@/store/useAuthStore";
 
 interface TaskCardProps {
   task: Task;
@@ -35,7 +36,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
 
   const priorityStyle = task.priority ? priorityConfig[task.priority] : null;
   const { projects, activeProjectId } = useProjectStore();
+  const { user } = useAuthStore();
   const project = projects[task.projectId];
+  const isOwner = project?.uid === user?.uid;
   const showProjectTag = activeProjectId === "all" || !activeProjectId;
 
   return (
@@ -57,8 +60,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onEdit, onDelete }) =>
         </h3>
         <div className="flex flex-col items-end gap-1.5">
           {showProjectTag && (
-            <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[9px] font-bold ${project ? 'border-primary/20 bg-primary/5 text-primary' : 'border-rose-200 bg-rose-50 text-rose-600'}`}>
+            <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-0.5 text-[9px] font-bold ${project ? (isOwner ? 'border-primary/20 bg-primary/5 text-primary' : 'border-blue-200 bg-blue-50 text-blue-600') : 'border-rose-200 bg-rose-50 text-rose-600'}`}>
               <span className="truncate max-w-[100px]">{project?.title || "No Workspace"}</span>
+              {!isOwner && project && <span className="ml-1 opacity-70">Shared</span>}
             </div>
           )}
           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

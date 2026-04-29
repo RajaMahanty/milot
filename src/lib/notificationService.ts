@@ -17,7 +17,7 @@ const NOTIFICATIONS_COLLECTION = "notifications";
 
 export interface Notification {
   id: string;
-  type: 'team_invite' | 'project_invite' | 'task_assigned' | 'general';
+  type: 'team_invite' | 'project_invite' | 'task_assigned' | 'task_comment' | 'comment_reply' | 'mention' | 'general';
   fromUid: string;
   fromName: string;
   toUid: string;
@@ -27,6 +27,8 @@ export interface Notification {
   projectName?: string;
   taskId?: string;
   taskTitle?: string;
+  commentId?: string;
+  commentText?: string;
   status: 'pending' | 'accepted' | 'declined' | 'read';
   createdAt: string;
 }
@@ -41,7 +43,6 @@ export const notificationService = {
     const q = query(
       collection(db, NOTIFICATIONS_COLLECTION),
       where("toUid", "==", uid),
-      orderBy("createdAt", "desc"),
       limit(pageSize)
     );
     const querySnapshot = await getDocs(q);
@@ -49,7 +50,8 @@ export const notificationService = {
     querySnapshot.forEach((doc) => {
       notifications.push(doc.data() as Notification);
     });
-    return notifications;
+    // Sort in memory to avoid missing index errors in firestore for dev
+    return notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
   async updateNotificationStatus(id: string, status: Notification['status']): Promise<void> {

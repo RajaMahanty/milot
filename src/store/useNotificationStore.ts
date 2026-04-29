@@ -74,7 +74,9 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
           await useTeamStore.getState().addMemberToTeam(notification.teamId, notification.toUid);
           toast.success(`Joined team ${notification.teamName}!`);
         } else if (notification.type === 'project_invite' && notification.projectId) {
-          // Logic for project invite acceptance will be handled in useProjectStore later
+          const { useProjectStore } = require('./useProjectStore');
+          await useProjectStore.getState().inviteMemberToProject(notification.projectId, notification.toUid);
+          await useProjectStore.getState().fetchProjects();
           toast.success(`Joined project ${notification.projectName}!`);
         }
       }

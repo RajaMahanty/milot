@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Column from "./Column";
 import { TaskModal } from "@/components/task/TaskModal";
 import { useKanbanStore, Task } from "@/store/useTaskStore";
@@ -9,6 +10,8 @@ import { useBoardStore } from "@/store/useBoardStore";
 import { useProjectStore } from "@/store/useProjectStore";
 import { TaskCard } from "@/components/task/TaskCard";
 import { toast } from "@/store/useToastStore";
+import { InviteModal } from "@/components/project/InviteModal";
+import { userService, UserProfile } from "@/lib/userService";
 
 import {
   DndContext,
@@ -61,6 +64,8 @@ export default function Board() {
   const [activeEditTask, setActiveEditTask] = useState<Task | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [deleteBoardId, setDeleteBoardId] = useState<string | null>(null);
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+  const [projectMembers, setProjectMembers] = useState<UserProfile[]>([]);
 
 
   // Filter States
@@ -69,6 +74,7 @@ export default function Board() {
 
   const [filterPriority, setFilterPriority] = useState<"high" | "medium" | "low" | null>(null);
   const [filterAssignee, setFilterAssignee] = useState<boolean>(false);
+  const [filterShared, setFilterShared] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<"board" | "list">("board");
   const [showViewDropdown, setShowViewDropdown] = useState(false);
 
@@ -117,11 +123,40 @@ export default function Board() {
 
   const { user } = useAuthStore();
 
+  // Fetch member profiles when active project changes
+  useEffect(() => {
+    const project = activeProjectId && activeProjectId !== "all" ? projects[activeProjectId] : null;
+    if (project?.memberIds?.length) {
+      userService.getUsersByIds(project.memberIds).then(setProjectMembers);
+    } else {
+      setProjectMembers([]);
+    }
+  }, [activeProjectId, projects]);
+
   useEffect(() => {
     if (user?.uid) {
       fetchTasks();
     }
   }, [fetchTasks, user?.uid]);
+
+  // Auto-open task from notification deep link (?openTask=taskId)
+  const searchParams = useSearchParams();
+  const routerBoard = useRouter();
+  const hasHandledDeepLink = useRef(false);
+
+  useEffect(() => {
+    const openTaskId = searchParams.get('openTask');
+    if (openTaskId && !hasHandledDeepLink.current && !isLoading) {
+      const task = tasks[openTaskId];
+      if (task) {
+        hasHandledDeepLink.current = true;
+        setActiveEditTask(task);
+        setIsModalOpen(true);
+        // Clean up the URL without triggering a navigation
+        routerBoard.replace('/board', { scroll: false });
+      }
+    }
+  }, [searchParams, tasks, isLoading]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -307,19 +342,31 @@ export default function Board() {
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex -space-x-2 mr-2">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-8 w-8 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground ring-1 ring-border">
-                U{i}
+          {/* Member Avatars */}
+          <div className="flex -space-x-2 mr-1">
+            {projectMembers.slice(0, 4).map((m) => (
+              <div
+                key={m.uid}
+                className="h-8 w-8 rounded-full border-2 border-background bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold ring-1 ring-border"
+                title={m.displayName || "Member"}
+              >
+                {m.displayName?.substring(0, 2).toUpperCase() || "U"}
               </div>
             ))}
-            <button 
-              onClick={() => toast.info("Team Invitation is coming soon!")}
-              className="h-8 w-8 rounded-full border-2 border-dashed border-muted-foreground/30 bg-secondary/30 flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors"
-
-            >
-              <UserPlus className="h-3 w-3" />
-            </button>
+            {projectMembers.length > 4 && (
+              <div className="h-8 w-8 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-[9px] font-bold text-muted-foreground ring-1 ring-border">
+                +{projectMembers.length - 4}
+              </div>
+            )}
+            {activeProject && (
+              <button
+                onClick={() => setIsInviteOpen(true)}
+                title="Invite member"
+                className="h-8 w-8 rounded-full border-2 border-dashed border-primary/40 bg-primary/5 flex items-center justify-center text-primary hover:bg-primary hover:text-white hover:border-transparent transition-all"
+              >
+                <UserPlus className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
 
           <div className="h-8 w-[1px] bg-border mx-1 hidden sm:block" />
@@ -478,6 +525,12 @@ export default function Board() {
         >
           Assigned to {filterAssignee && `: Me`}
         </div>
+        <div 
+          onClick={() => setFilterShared(!filterShared)}
+          className={`flex items-center select-none gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium cursor-pointer transition-colors ${filterShared ? "border-blue-500 text-blue-600 bg-blue-50" : "border-border text-muted-foreground hover:bg-secondary"}`}
+        >
+          Shared Workspaces
+        </div>
       </div>
 
       <DndContext
@@ -501,19 +554,23 @@ export default function Board() {
               Object.values(columns).map((column) => {
                 let columnTasks = column.taskIds.map((taskId) => tasks[taskId]).filter(Boolean);
 
-                // Filter by Board
-                if (activeBoardId) {
-                  columnTasks = columnTasks.filter(t => t.boardId === activeBoardId);
-                } else if (Object.keys(boards).length > 0) {
-                  // If boards exist but none selected (shouldn't happen with auto-select), show none or handle
-                  columnTasks = columnTasks.filter(t => !t.boardId);
+                // Filter by Board (skip when viewing All Workspaces)
+                if (activeProjectId !== "all") {
+                  if (activeBoardId) {
+                    columnTasks = columnTasks.filter(t => t.boardId === activeBoardId);
+                  } else if (Object.keys(boards).length > 0) {
+                    columnTasks = columnTasks.filter(t => !t.boardId);
+                  }
                 }
 
                 if (filterPriority) {
                    columnTasks = columnTasks.filter(t => t.priority === filterPriority);
                 }
                 if (filterAssignee) {
-                   columnTasks = columnTasks.filter(t => t.assignedTo);
+                   columnTasks = columnTasks.filter(t => t.assignedTo === user?.uid);
+                }
+                if (filterShared) {
+                   columnTasks = columnTasks.filter(t => projects[t.projectId]?.uid !== user?.uid);
                 }
                 if (searchQuery.trim()) {
                    const query = searchQuery.toLowerCase();
@@ -550,10 +607,13 @@ export default function Board() {
                   <tbody className="divide-y divide-border">
                     {Object.values(tasks)
                       .filter(t => {
-                        if (activeBoardId && t.boardId !== activeBoardId) return false;
-                        if (!activeBoardId && Object.keys(boards).length > 0 && t.boardId) return false;
+                        if (activeProjectId !== "all") {
+                          if (activeBoardId && t.boardId !== activeBoardId) return false;
+                          if (!activeBoardId && Object.keys(boards).length > 0 && t.boardId) return false;
+                        }
                         if (filterPriority && t.priority !== filterPriority) return false;
-                        if (filterAssignee && !t.assignedTo) return false;
+                        if (filterAssignee && t.assignedTo !== user?.uid) return false;
+                        if (filterShared && projects[t.projectId]?.uid === user?.uid) return false;
                         if (searchQuery.trim()) {
                           const q = searchQuery.toLowerCase();
                           if (!t.title.toLowerCase().includes(q) && !(t.description && t.description.toLowerCase().includes(q))) return false;
@@ -642,6 +702,15 @@ export default function Board() {
         title="Delete Board?"
         description="Are you sure you want to permanently delete this board? All tasks in this board will remain in your project but won't be visible on this board view anymore."
       />
+
+      {activeProject && (
+        <InviteModal
+          open={isInviteOpen}
+          onOpenChange={setIsInviteOpen}
+          projectId={activeProject.id}
+          projectName={activeProject.title}
+        />
+      )}
     </div>
 
   );

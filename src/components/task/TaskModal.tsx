@@ -15,7 +15,7 @@ import { useBoardStore } from "@/store/useBoardStore";
 import { useTeamStore } from "@/store/useTeamStore";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { userService, UserProfile } from "@/lib/userService";
-import { Task, SubTask, Comment } from "@/store/useTaskStore";
+import { Task, SubTask, Comment, CommentReply } from "@/store/useTaskStore";
 import {
   CheckCircle2,
   Circle,
@@ -34,7 +34,9 @@ import {
   Clock,
   LayoutGrid,
   MessageSquare,
-  Layers
+  Layers,
+  Reply,
+  CornerDownRight
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "@/store/useToastStore";
@@ -62,6 +64,12 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [newSubtask, setNewSubtask] = useState("");
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [replyingToId, setReplyingToId] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionTarget, setMentionTarget] = useState<'comment' | 'reply' | null>(null);
+  const commentRef = useRef<HTMLTextAreaElement>(null);
+  const replyRef = useRef<HTMLTextAreaElement>(null);
   const [assignedTo, setAssignedTo] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
@@ -262,6 +270,52 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     setSubtasks(subtasks.map(s => s.id === id ? { ...s, title } : s));
   };
 
+  // Parse @username mentions from text and return matching member profiles
+  const getMentionedUsers = (text: string) => {
+    const matches = text.match(/@(\w+)/g) || [];
+    const usernames = matches.map(m => m.slice(1).toLowerCase());
+    return projectMembers.filter(m => usernames.includes(m.username?.toLowerCase() || ""));
+  };
+
+  // Detect @ in textarea and show member suggestions
+  const handleTextareaInput = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+    setValue: (v: string) => void,
+    target: 'comment' | 'reply'
+  ) => {
+    const value = e.target.value;
+    setValue(value);
+    const cursor = e.target.selectionStart;
+    const textBeforeCursor = value.slice(0, cursor);
+    const atMatch = textBeforeCursor.match(/@(\w*)$/);
+    if (atMatch) {
+      setMentionQuery(atMatch[1]);
+      setMentionTarget(target);
+    } else {
+      setMentionQuery("");
+      setMentionTarget(null);
+    }
+  };
+
+  const mentionSuggestions = mentionQuery !== null && mentionTarget
+    ? projectMembers.filter(m =>
+        m.uid !== user?.uid &&
+        (m.username?.toLowerCase().startsWith(mentionQuery.toLowerCase()) ||
+         m.displayName?.toLowerCase().startsWith(mentionQuery.toLowerCase()))
+      )
+    : [];
+
+  const insertMention = (member: UserProfile, currentText: string, setValue: (v: string) => void, ref: React.RefObject<HTMLTextAreaElement>) => {
+    const cursor = ref.current?.selectionStart ?? currentText.length;
+    const textBefore = currentText.slice(0, cursor);
+    const textAfter = currentText.slice(cursor);
+    const replaced = textBefore.replace(/@(\w*)$/, `@${member.username} `);
+    setValue(replaced + textAfter);
+    setMentionQuery("");
+    setMentionTarget(null);
+    setTimeout(() => ref.current?.focus(), 0);
+  };
+
   const addComment = () => {
     if (!newComment.trim() || !user) return;
     const comm: Comment = {
@@ -269,10 +323,92 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       author: user.displayName || user.email || "Anonymous",
       authorId: user.uid,
       text: newComment.trim(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      replies: []
     };
     setComments([comm, ...comments]);
+
+    // Notify assignee (if not self)
+    if (assignedTo && assignedTo !== user.uid && initialData?.id) {
+      sendNotification({
+        type: 'task_comment',
+        toUid: assignedTo,
+        taskId: initialData.id,
+        taskTitle: title.trim(),
+        projectId,
+        projectName: projects[projectId]?.title,
+        commentId: comm.id,
+        commentText: comm.text.slice(0, 100),
+      } as any);
+    }
+
+    // Notify @mentioned users
+    getMentionedUsers(comm.text).forEach(m => {
+      if (m.uid !== user.uid && initialData?.id) {
+        sendNotification({
+          type: 'mention',
+          toUid: m.uid,
+          taskId: initialData.id,
+          taskTitle: title.trim(),
+          projectId,
+          projectName: projects[projectId]?.title,
+          commentId: comm.id,
+          commentText: comm.text.slice(0, 100),
+        } as any);
+      }
+    });
+
     setNewComment("");
+  };
+
+  const addReply = (commentId: string) => {
+    if (!replyText.trim() || !user) return;
+    const reply: CommentReply = {
+      id: crypto.randomUUID(),
+      author: user.displayName || user.email || "Anonymous",
+      authorId: user.uid,
+      text: replyText.trim(),
+      createdAt: new Date().toISOString()
+    };
+    const parentComment = comments.find(c => c.id === commentId);
+    setComments(comments.map(c =>
+      c.id === commentId
+        ? { ...c, replies: [...(c.replies || []), reply] }
+        : c
+    ));
+
+    // Notify original comment author
+    if (parentComment && parentComment.authorId !== user.uid && initialData?.id) {
+      sendNotification({
+        type: 'comment_reply',
+        toUid: parentComment.authorId,
+        taskId: initialData.id,
+        taskTitle: title.trim(),
+        projectId,
+        projectName: projects[projectId]?.title,
+        commentId,
+        commentText: reply.text.slice(0, 100),
+      } as any);
+    }
+
+    // Notify @mentioned users in reply
+    getMentionedUsers(reply.text).forEach(m => {
+      if (m.uid !== user.uid && initialData?.id) {
+        sendNotification({
+          type: 'mention',
+          toUid: m.uid,
+          taskId: initialData.id,
+          taskTitle: title.trim(),
+          projectId,
+          projectName: projects[projectId]?.title,
+          commentId,
+          commentText: reply.text.slice(0, 100),
+        } as any);
+      }
+    });
+
+    setReplyText("");
+    setReplyingToId(null);
   };
 
   const generateAISubtasks = async () => {
@@ -526,13 +662,38 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                     <User className="h-4 w-4" />
                   </div>
                   <div className="flex-1 space-y-3">
-                    <textarea
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      placeholder="Write a comment..."
-                      className="w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 shadow-sm transition-all focus:border-primary/30"
-                      rows={2}
-                    />
+                    {/* Textarea with @mention anchored above */}
+                    <div className="relative">
+                      <textarea
+                        ref={commentRef}
+                        value={newComment}
+                        onChange={(e) => handleTextareaInput(e, setNewComment, 'comment')}
+                        placeholder="Write a comment... Use @username to mention someone"
+                        className="w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 shadow-sm transition-all focus:border-primary/30"
+                        rows={2}
+                      />
+                      {/* @mention suggestion list - appears ABOVE textarea */}
+                      {mentionTarget === 'comment' && mentionSuggestions.length > 0 && (
+                        <div className="absolute z-50 left-0 bottom-full mb-2 w-56 bg-card border border-border rounded-xl shadow-elevated overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                          {mentionSuggestions.map(m => (
+                            <button
+                              key={m.uid}
+                              onMouseDown={(e) => { e.preventDefault(); insertMention(m, newComment, setNewComment, commentRef); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-secondary transition-colors text-left"
+                            >
+                              <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                                {m.displayName?.charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-foreground leading-none">{m.displayName}</p>
+                                <p className="text-[9px] text-muted-foreground mt-0.5">@{m.username}</p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     <div className="flex justify-end">
                       <button
                         onClick={addComment}
@@ -547,23 +708,126 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
                 <div className="space-y-6">
                   {comments.map((comment) => (
-                    <div key={comment.id} className="flex gap-4 group">
-                      <div className="h-8 w-8 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                    <div key={comment.id} className="flex gap-3 group">
+                      {/* Avatar */}
+                      <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold flex-shrink-0 ring-1 ring-primary/20">
                         {comment.author.charAt(0).toUpperCase()}
                       </div>
-                      <div className="flex-1">
+
+                      <div className="flex-1 min-w-0">
+                        {/* Author + timestamp */}
                         <div className="flex items-baseline gap-2 mb-1">
                           <span className="text-sm font-bold text-slate-900 dark:text-white">{comment.author}</span>
                           <span className="text-[10px] font-medium text-slate-400">
                             {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           </span>
                         </div>
+
+                        {/* Comment body */}
                         <div className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50 dark:bg-slate-900/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                           {comment.text}
                         </div>
+
+                        {/* Reply button */}
+                        <button
+                          onClick={() => {
+                            setReplyingToId(replyingToId === comment.id ? null : comment.id);
+                            setReplyText("");
+                          }}
+                          className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-primary transition-colors"
+                        >
+                          <CornerDownRight className="h-3 w-3" />
+                          {replyingToId === comment.id ? "Cancel" : `Reply${
+                            comment.replies && comment.replies.length > 0 ? ` · ${comment.replies.length}` : ""
+                          }`}
+                        </button>
+
+                        {/* Inline reply input */}
+                        {replyingToId === comment.id && (
+                          <div className="mt-3 flex gap-2.5 animate-in fade-in slide-in-from-top-1">
+                            <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
+                              {user?.displayName?.charAt(0).toUpperCase() || "U"}
+                            </div>
+                            <div className="flex-1">
+                              {/* Reply textarea with @mention anchored above */}
+                              <div className="relative">
+                                <textarea
+                                  ref={replyRef}
+                                  autoFocus
+                                  value={replyText}
+                                  onChange={(e) => handleTextareaInput(e, setReplyText, 'reply')}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter" && !e.shiftKey) {
+                                      e.preventDefault();
+                                      addReply(comment.id);
+                                    }
+                                  }}
+                                  placeholder={`Reply to ${comment.author}... Use @username to mention`}
+                                  rows={2}
+                                  className="w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-primary/20 shadow-sm transition-all focus:border-primary/30 resize-none"
+                                />
+                                {/* Reply @mention suggestions - appears ABOVE textarea */}
+                                {mentionTarget === 'reply' && mentionSuggestions.length > 0 && (
+                                  <div className="absolute z-50 left-0 bottom-full mb-2 w-52 bg-card border border-border rounded-xl shadow-elevated overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                                    {mentionSuggestions.map(m => (
+                                      <button
+                                        key={m.uid}
+                                        onMouseDown={(e) => { e.preventDefault(); insertMention(m, replyText, setReplyText, replyRef); }}
+                                        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors text-left"
+                                      >
+                                        <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold flex-shrink-0">
+                                          {m.displayName?.charAt(0).toUpperCase()}
+                                        </div>
+                                        <div>
+                                          <p className="text-xs font-bold text-foreground leading-none">{m.displayName}</p>
+                                          <p className="text-[9px] text-muted-foreground mt-0.5">@{m.username}</p>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex justify-end mt-1.5">
+                                <button
+                                  onClick={() => addReply(comment.id)}
+                                  disabled={!replyText.trim()}
+                                  className="px-3 py-1.5 bg-primary text-white rounded-lg text-[10px] font-bold disabled:opacity-40 transition-all hover:opacity-90 active:scale-95 flex items-center gap-1.5"
+                                >
+                                  <Reply className="h-3 w-3" />
+                                  Reply
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Nested replies */}
+                        {comment.replies && comment.replies.length > 0 && (
+                          <div className="mt-3 space-y-3 pl-4 border-l-2 border-slate-100 dark:border-slate-800">
+                            {comment.replies.map((reply) => (
+                              <div key={reply.id} className="flex gap-2.5">
+                                <div className="h-6 w-6 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[9px] font-bold text-slate-600 dark:text-slate-300 flex-shrink-0">
+                                  {reply.author.charAt(0).toUpperCase()}
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-baseline gap-1.5 mb-0.5">
+                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{reply.author}</span>
+                                    <span className="text-[9px] text-slate-400">
+                                      {new Date(reply.createdAt).toLocaleDateString()} at {new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50/80 dark:bg-slate-900/30 px-3 py-2 rounded-lg border border-slate-100/80 dark:border-slate-800/80">
+                                    {reply.text}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
+
                   {comments.length === 0 && (
                     <div className="py-8 text-center border-2 border-dashed border-slate-50 dark:border-slate-900 rounded-2xl">
                       <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No activity logs</p>

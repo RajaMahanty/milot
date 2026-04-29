@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { FolderKanban, Plus, MoreVertical, LayoutGrid, Pencil, Trash2 } from "lucide-react";
 import { useProjectStore } from "@/store/useProjectStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { useRouter } from "next/navigation";
 import { toast } from "@/store/useToastStore";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
@@ -99,6 +100,11 @@ export default function ProjectsPage() {
     setOpenDropdown(openDropdown === id ? null : id);
   };
 
+  const user = useAuthStore((state) => state.user);
+  const allProjects = Object.values(projects);
+  const ownedProjects = allProjects.filter(p => p.uid === user?.uid);
+  const sharedProjects = allProjects.filter(p => p.uid !== user?.uid);
+
   return (
     <div className="flex flex-col gap-8 pb-8 h-full" onClick={() => setOpenDropdown(null)}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -110,7 +116,7 @@ export default function ProjectsPage() {
             Workspaces
           </h2>
           <p className="text-sm text-muted-foreground mt-2 text-neutral-muted">
-            Manage your distinct projects and isolated workspaces here.
+            Manage your personal projects and shared collaborations.
           </p>
         </div>
         <button
@@ -122,80 +128,65 @@ export default function ProjectsPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">
-        {Object.values(projects).map((project, index) => (
-          <div
-            key={project.id}
-            ref={index === Object.values(projects).length - 1 ? lastProjectElementRef : null}
-            onClick={() => handleOpenProject(project.id)}
-            className="group flex flex-col justify-between h-48 rounded-2xl border border-border bg-card p-5 shadow-soft hover:shadow-card hover:border-primary/30 transition-all cursor-pointer overflow-visible relative"
-          >
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-brand-secondary opacity-40 group-hover:opacity-100 transition-opacity rounded-t-2xl" />
+      <div className="space-y-12 mt-4">
+        {/* Owned Projects Section */}
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+             <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">My Projects</h3>
+             <div className="h-[1px] flex-1 bg-border/50" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {ownedProjects.map((project, index) => (
+              <ProjectCard 
+                key={project.id}
+                project={project}
+                isOwner={true}
+                onOpen={() => handleOpenProject(project.id)}
+                onEdit={(e) => openEditModal(e, project)}
+                onShare={(e) => openShareModal(e, project)}
+                onDelete={(e) => handleDelete(e, project.id)}
+                toggleDropdown={(e) => toggleDropdown(e, project.id)}
+                isDropdownOpen={openDropdown === project.id}
+                lastRef={index === ownedProjects.length - 1 ? lastProjectElementRef : null}
+              />
+            ))}
 
-
-
-            <div>
-              <div className="flex items-start justify-between mb-2">
-                <div className="h-10 w-10 flex items-center justify-center rounded-xl bg-secondary text-primary font-bold text-xs ring-1 ring-border">
-                  {project.title.substring(0, 2).toUpperCase()}
-                </div>
-                <div className="relative">
-                  <button
-                    onClick={(e) => toggleDropdown(e, project.id)}
-                    className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 data-[open=true]:opacity-100"
-                    data-open={openDropdown === project.id}
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </button>
-
-                  {openDropdown === project.id && (
-                    <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-xl shadow-elevated z-50 p-1 animate-in fade-in slide-in-from-top-2">
-                      <button
-                        onClick={(e) => openEditModal(e, project)}
-                        className="w-full text-left px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <Pencil className="h-3 w-3" />
-                        Edit
-                      </button>
-                      <button
-                        onClick={(e) => openShareModal(e, project)}
-                        className="w-full text-left px-3 py-2 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <UserPlus className="h-3 w-3" />
-                        Share
-                      </button>
-                      <button
-                        onClick={(e) => handleDelete(e, project.id)}
-                        className="w-full text-left px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        Delete
-                      </button>
-                    </div>
-                  )}
-                </div>
+            <div
+              onClick={() => setIsModalOpen(true)}
+              className="flex flex-col items-center justify-center h-48 rounded-2xl border-2 border-dashed border-border bg-secondary/10 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer group"
+            >
+              <div className="h-12 w-12 flex items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors mb-3">
+                <Plus className="h-6 w-6" />
               </div>
-              <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">{project.title}</h3>
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{project.description || "No description provided."}</p>
-            </div>
-
-            <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground pt-4 border-t border-border mt-4">
-              <FolderKanban className="h-3 w-3" />
-              Project Space
+              <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Create New Workspace</p>
             </div>
           </div>
-        ))}
-
-        {/* Empty State / Create Button Card */}
-        <div
-          onClick={() => setIsModalOpen(true)}
-          className="flex flex-col items-center justify-center h-48 rounded-2xl border-2 border-dashed border-border bg-secondary/10 hover:border-primary/40 hover:bg-primary/5 transition-all cursor-pointer group"
-        >
-          <div className="h-12 w-12 flex items-center justify-center rounded-full bg-secondary text-muted-foreground group-hover:text-primary group-hover:bg-primary/10 transition-colors mb-3">
-            <Plus className="h-6 w-6" />
-          </div>
-          <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Create New Workspace</p>
         </div>
+
+        {/* Shared Projects Section */}
+        {sharedProjects.length > 0 && (
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+               <h3 className="text-xs font-black uppercase tracking-widest text-muted-foreground ml-1">Shared with Me</h3>
+               <div className="h-[1px] flex-1 bg-border/50" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {sharedProjects.map((project) => (
+                <ProjectCard 
+                  key={project.id}
+                  project={project}
+                  isOwner={false}
+                  onOpen={() => handleOpenProject(project.id)}
+                  onEdit={() => {}} 
+                  onShare={() => {}}
+                  onDelete={() => {}}
+                  toggleDropdown={(e) => toggleDropdown(e, project.id)}
+                  isDropdownOpen={openDropdown === project.id}
+                />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {isLoading && (
@@ -269,5 +260,85 @@ export default function ProjectsPage() {
       />
     </div>
 
+  );
+}
+
+function ProjectCard({ 
+  project, 
+  isOwner, 
+  onOpen, 
+  onEdit, 
+  onShare, 
+  onDelete, 
+  toggleDropdown, 
+  isDropdownOpen,
+  lastRef 
+}: any) {
+  return (
+    <div
+      ref={lastRef}
+      onClick={onOpen}
+      className="group flex flex-col justify-between h-48 rounded-2xl border border-border bg-card p-5 shadow-soft hover:shadow-card hover:border-primary/30 transition-all cursor-pointer overflow-visible relative"
+    >
+      <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${isOwner ? 'from-primary to-brand-secondary' : 'from-blue-400 to-indigo-400'} opacity-40 group-hover:opacity-100 transition-opacity rounded-t-2xl`} />
+
+      <div>
+        <div className="flex items-start justify-between mb-2">
+          <div className={`h-10 w-10 flex items-center justify-center rounded-xl font-bold text-xs ring-1 ring-border shadow-sm ${isOwner ? 'bg-secondary text-primary' : 'bg-blue-50 text-blue-600'}`}>
+            {project.title.substring(0, 2).toUpperCase()}
+          </div>
+          
+          {isOwner && (
+            <div className="relative">
+              <button
+                onClick={(e) => toggleDropdown(e, project.id)}
+                className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100 data-[open=true]:opacity-100"
+                data-open={isDropdownOpen}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+
+              {isDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1 w-32 bg-card border border-border rounded-xl shadow-elevated z-50 p-1 animate-in fade-in slide-in-from-top-2">
+                  <button
+                    onClick={onEdit}
+                    className="w-full text-left px-3 py-2 text-xs font-bold text-foreground hover:bg-secondary rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Pencil className="h-3 w-3" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={onShare}
+                    className="w-full text-left px-3 py-2 text-xs font-bold text-primary hover:bg-primary/5 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <UserPlus className="h-3 w-3" />
+                    Share
+                  </button>
+                  <button
+                    onClick={onDelete}
+                    className="w-full text-left px-3 py-2 text-xs font-bold text-rose-500 hover:bg-rose-50 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors line-clamp-1">{project.title}</h3>
+        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">{project.description || "No description provided."}</p>
+      </div>
+
+      <div className="flex items-center justify-between pt-4 border-t border-border mt-4">
+        <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider font-bold text-muted-foreground">
+          <FolderKanban className="h-3 w-3" />
+          {isOwner ? "My Project" : "Shared Workspace"}
+        </div>
+        {!isOwner && (
+          <span className="text-[10px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-lg">Shared</span>
+        )}
+      </div>
+    </div>
   );
 }

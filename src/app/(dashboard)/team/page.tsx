@@ -16,7 +16,8 @@ import {
   MoreVertical,
   X,
   CheckCircle2,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from "lucide-react";
 import { toast } from "@/store/useToastStore";
 
@@ -41,13 +42,21 @@ export default function TeamPage() {
   useEffect(() => {
     if (selectedTeamId) {
       const team = teams.find(t => t.id === selectedTeamId);
-      if (team) {
-        loadTeamMembers(team.memberIds);
-      }
+      if (team) loadTeamMembers(team.memberIds);
     } else if (teams.length > 0 && !selectedTeamId) {
       setSelectedTeamId(teams[0].id);
     }
   }, [selectedTeamId, teams]);
+
+  // Auto-search as user types (debounced)
+  useEffect(() => {
+    if (userSearchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => handleSearchUsers(), 400);
+    return () => clearTimeout(timer);
+  }, [userSearchQuery]);
 
   const loadTeamMembers = async (uids: string[]) => {
     const members = await userService.getUsersByIds(uids);
@@ -67,7 +76,9 @@ export default function TeamPage() {
     setIsSearching(true);
     try {
       const results = await userService.searchUsers(userSearchQuery);
-      setSearchResults(results);
+      // Filter out existing members
+      const existingIds = selectedTeam?.memberIds || [];
+      setSearchResults(results.filter(u => !existingIds.includes(u.uid) && u.uid !== user?.uid));
     } catch (error) {
       toast.error("Search failed.");
     } finally {
@@ -219,47 +230,57 @@ export default function TeamPage() {
                 {/* Invite Members */}
                 <div className="space-y-4">
                   <h4 className="text-xs font-black uppercase tracking-widest text-muted-foreground">Invite New Members</h4>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <input 
-                      type="text"
-                      placeholder="Search by name, email or username..."
-                      value={userSearchQuery}
-                      onChange={(e) => setUserSearchQuery(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleSearchUsers()}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-background transition-all"
-                    />
+                  {/* Live search input */}
+                  <div className="space-y-3">
+                    <div className="relative">
+                      {isSearching ? (
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      )}
+                      <input 
+                        type="text"
+                        placeholder="Search by name, email or username..."
+                        value={userSearchQuery}
+                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-background transition-all"
+                      />
+                    </div>
+
+                    {userSearchQuery.length >= 2 && !isSearching && searchResults.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-2 italic">No users found.</p>
+                    )}
                   </div>
-                  <button 
-                    onClick={handleSearchUsers}
-                    className="w-full py-2.5 rounded-xl bg-secondary text-foreground text-xs font-bold hover:bg-border transition-colors border border-border"
-                  >
-                    {isSearching ? "Searching..." : "Find Members"}
-                  </button>
 
                   <div className="space-y-2 mt-4 max-h-[200px] overflow-y-auto no-scrollbar">
-                    {searchResults.length > 0 ? (
-                      searchResults.map(u => (
-                        <div key={u.uid} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card/50 hover:bg-card transition-all">
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
-                              {u.displayName?.substring(0, 2).toUpperCase() || "U"}
+                    {searchResults.length > 0 && (
+                      searchResults.map(u => {
+                        const alreadyInvited = selectedTeam?.memberIds.includes(u.uid);
+                        return (
+                          <div key={u.uid} className="flex items-center justify-between p-3 rounded-xl border border-border bg-card/50 hover:bg-card transition-all">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary">
+                                {u.displayName?.substring(0, 2).toUpperCase() || "U"}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-xs font-bold text-foreground truncate">{u.displayName}</p>
+                                <p className="text-[10px] text-muted-foreground">@{u.username}</p>
+                              </div>
                             </div>
-                            <div className="min-w-0">
-                              <p className="text-xs font-bold text-foreground truncate">{u.displayName}</p>
-                              <p className="text-[10px] text-muted-foreground">@{u.username}</p>
-                            </div>
+                            <button 
+                              onClick={() => handleInviteToTeam(u)}
+                              disabled={alreadyInvited}
+                              className={`p-1.5 rounded-lg transition-all shadow-sm active:scale-95 ${
+                                alreadyInvited
+                                  ? 'bg-secondary text-muted-foreground cursor-not-allowed'
+                                  : 'bg-primary/10 text-primary hover:bg-primary hover:text-white'
+                              }`}
+                            >
+                              {alreadyInvited ? <CheckCircle2 className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                            </button>
                           </div>
-                          <button 
-                            onClick={() => handleInviteToTeam(u)}
-                            className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all shadow-sm active:scale-95"
-                          >
-                            <UserPlus className="h-4 w-4" />
-                          </button>
-                        </div>
-                      ))
-                    ) : userSearchQuery && !isSearching && (
-                      <p className="text-xs text-muted-foreground text-center py-4 italic">No users found.</p>
+                        );
+                      })
                     )}
                   </div>
                 </div>

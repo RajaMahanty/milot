@@ -10,12 +10,21 @@ export interface SubTask {
   completed: boolean;
 }
 
+export interface CommentReply {
+  id: string;
+  author: string;
+  authorId: string;
+  text: string;
+  createdAt: string;
+}
+
 export interface Comment {
   id: string;
   author: string;
   authorId: string;
   text: string;
   createdAt: string;
+  replies?: CommentReply[];
 }
 
 export interface Task {
@@ -93,14 +102,28 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
     set({ isLoading: true, error: null, lastVisible: null, hasMore: true });
     try {
-      const { tasks: dbTasks, lastVisible: lastDoc } = await taskService.fetchTasks(user.uid, activeProjectId, 50);
-      const cols = JSON.parse(JSON.stringify(defaultColumns));
-
       const projects = useProjectStore.getState().projects;
+
+      let allDbTasks: Record<string, Task> = {};
+      let lastDoc: any = null;
+
+      if (activeProjectId !== "all") {
+        // Single project: fetch all tasks for this project (covers shared + owned)
+        const projectTasks = await taskService.fetchTasksByProjectIds([activeProjectId]);
+        allDbTasks = projectTasks;
+      } else {
+        // All Workspaces: fetch tasks from ALL projects the user has access to
+        const allProjectIds = Object.keys(projects);
+        if (allProjectIds.length > 0) {
+          allDbTasks = await taskService.fetchTasksByProjectIds(allProjectIds);
+        }
+      }
+
+      const cols = JSON.parse(JSON.stringify(defaultColumns));
       const validDbTasks: Record<string, any> = {};
 
-      Object.keys(dbTasks).forEach(taskId => {
-        const t = dbTasks[taskId];
+      Object.keys(allDbTasks).forEach(taskId => {
+        const t = allDbTasks[taskId];
         if (projects[t.projectId]) {
           validDbTasks[taskId] = t;
           if (t.status !== "archived" && cols[t.status]) {
@@ -121,6 +144,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       set({ error: err.message, isLoading: false });
     }
   },
+
 
   fetchMoreTasks: async () => {
     const { lastVisible, hasMore, isLoading, tasks, columns } = get();

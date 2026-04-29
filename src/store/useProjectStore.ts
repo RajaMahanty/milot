@@ -59,7 +59,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
         teamProjects = await projectService.fetchProjectsByTeams(teamIds);
       }
 
-      const allFetchedProjects = { ...teamProjects, ...userProjects };
+      const merged = { ...teamProjects, ...userProjects };
+      const allFetchedProjects: Record<string, Project> = {};
+      Object.entries(merged)
+        .sort(([, a], [, b]) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .forEach(([id, p]) => { allFetchedProjects[id] = p; });
       
       const activeId = get().activeProjectId;
       let newActiveId = activeId || "all";
@@ -135,6 +139,17 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
     try {
       await projectService.createProject(newProject);
+      
+      // Create a default board for the new project
+      const { boardService } = require('@/lib/boardService');
+      await boardService.createBoard({
+        id: crypto.randomUUID(),
+        name: "Untitled Board",
+        projectId: newProject.id,
+        uid: user.uid,
+        createdAt: new Date().toISOString()
+      });
+
       set({ isLoading: false });
       
       // Update tasks if this is the first project
@@ -205,8 +220,24 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   },
 
   inviteMemberToProject: async (projectId, uid) => {
-    const project = get().projects[projectId];
-    if (!project) return;
+    let project = get().projects[projectId];
+    
+    if (!project) {
+      // If not in local state (e.g. accepting an invite for a project not yet visible), fetch from DB
+      try {
+        const docSnap = await projectService.getProject(projectId);
+        if (docSnap) {
+          project = docSnap;
+        } else {
+          console.error("Project not found in DB:", projectId);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to fetch project for invitation:", err);
+        return;
+      }
+    }
+
     if (project.memberIds.includes(uid)) return;
 
     const newMemberIds = [...project.memberIds, uid];

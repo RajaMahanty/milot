@@ -38,14 +38,27 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       const boardIds = Object.keys(dbBoards);
       
       if (boardIds.length === 0) {
-        // Auto-create default board for new projects
-        await get().createBoard("Untitled Board");
+        // Only auto-create a default board if this user OWNS the project
+        const projects = useProjectStore.getState().projects;
+        const project = projects[activeProjectId];
+        if (project && project.uid === user.uid) {
+          await get().createBoard("Untitled Board");
+        } else {
+          // Invited member with no boards yet — just clear state
+          set({ boards: {}, activeBoardId: null, isLoading: false });
+        }
         return;
       }
 
       let newActiveId = get().activeBoardId;
       if (!newActiveId || !dbBoards[newActiveId]) {
-        newActiveId = boardIds.length > 0 ? boardIds[0] : null;
+        // Prefer the board created by the project owner
+        const projects = useProjectStore.getState().projects;
+        const project = projects[activeProjectId];
+        const ownerBoard = project
+          ? Object.values(dbBoards).find(b => b.uid === project.uid)
+          : null;
+        newActiveId = ownerBoard?.id || boardIds[0];
       }
 
       set({ boards: dbBoards, activeBoardId: newActiveId, isLoading: false });
@@ -54,6 +67,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       set({ error: err.message, isLoading: false });
     }
   },
+
 
   createBoard: async (name: string) => {
     const user = useAuthStore.getState().user;

@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, orderBy } from "firebase/firestore";
+import { collection, doc, getDoc, setDoc, getDocs, updateDoc, deleteDoc, query, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, orderBy } from "firebase/firestore";
 import { db } from "./firebase";
 
 const PROJECTS_COLLECTION = "projects";
@@ -14,6 +14,15 @@ export type Project = {
 };
 
 export const projectService = {
+  async getProject(projectId: string): Promise<Project | null> {
+    const docRef = doc(db, PROJECTS_COLLECTION, projectId);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      return docSnap.data() as Project;
+    }
+    return null;
+  },
+
   // Fetch projects for a specific user
   async fetchProjects(
     uid: string, 
@@ -24,7 +33,6 @@ export const projectService = {
     // For now, let's assume memberIds always includes the owner.
     let constraints: any[] = [
       where("memberIds", "array-contains", uid),
-      orderBy("createdAt", "desc"),
       limit(pageSize)
     ];
 
@@ -41,7 +49,14 @@ export const projectService = {
     });
 
     const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
-    return { projects, lastVisible: lastVisibleDoc };
+    
+    // Sort in memory for dev
+    const sortedProjects: Record<string, Project> = {};
+    Object.entries(projects)
+      .sort(([, a], [, b]) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .forEach(([id, p]) => { sortedProjects[id] = p; });
+
+    return { projects: sortedProjects, lastVisible: lastVisibleDoc };
   },
 
   async fetchProjectsByTeams(

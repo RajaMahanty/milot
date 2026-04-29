@@ -2,11 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X, Search, UserPlus, Users, Trash2, Shield, User } from "lucide-react";
+import { X, Search, UserPlus, Users, Trash2, Shield, User, Plus } from "lucide-react";
 import { userService, UserProfile } from "@/lib/userService";
 import { useProjectStore, Project } from "@/store/useProjectStore";
 import { useTeamStore } from "@/store/useTeamStore";
 import { useNotificationStore } from "@/store/useNotificationStore";
+import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "@/store/useToastStore";
 
 export function ShareProjectModal({ 
@@ -21,6 +22,7 @@ export function ShareProjectModal({
   const { inviteMemberToProject, assignTeamToProject, updateProject } = useProjectStore();
   const { teams, fetchTeams } = useTeamStore();
   const { sendNotification } = useNotificationStore();
+  const { user } = useAuthStore();
   
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
@@ -31,11 +33,23 @@ export function ShareProjectModal({
   useEffect(() => {
     if (open) {
       fetchTeams();
+      setSearchQuery("");
+      setSearchResults([]);
       if (project) {
         loadMembers(project.memberIds);
       }
     }
   }, [open, project]);
+
+  // Live search with debounce
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(() => handleSearch(), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const loadMembers = async (uids: string[]) => {
     const data = await userService.getUsersByIds(uids);
@@ -47,7 +61,8 @@ export function ShareProjectModal({
     setIsSearching(true);
     try {
       const data = await userService.searchUsers(searchQuery);
-      setSearchResults(data);
+      // Filter out existing members
+      setSearchResults(data.filter(u => !project?.memberIds?.includes(u.uid)));
     } catch (err) {
       toast.error("Search failed.");
     } finally {
@@ -136,22 +151,19 @@ export function ShareProjectModal({
                   <h4 className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Invite People</h4>
                   <div className="flex gap-3">
                     <div className="relative flex-1">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      {isSearching ? (
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      )}
                       <input 
                         type="text"
                         placeholder="Search by name, email, or username..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                         className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-secondary/50 border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-background transition-all"
                       />
                     </div>
-                    <button 
-                      onClick={handleSearch}
-                      className="px-6 py-2.5 rounded-xl bg-primary text-white text-xs font-bold hover:opacity-90 transition-opacity shadow-sm"
-                    >
-                      Search
-                    </button>
                   </div>
 
                   {searchResults.length > 0 && (
@@ -196,7 +208,7 @@ export function ShareProjectModal({
                         </div>
                         {project.uid === m.uid ? (
                           <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-lg">Owner</span>
-                        ) : project.uid === useAuthStore.getState().user?.uid && (
+                        ) : project.uid === user?.uid && (
                           <button 
                             onClick={() => handleRemoveMember(m.uid)}
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"
@@ -254,7 +266,7 @@ export function ShareProjectModal({
                               </div>
                               <span className="text-sm font-bold text-foreground">{team?.name || "Unknown Team"}</span>
                             </div>
-                            {project.uid === useAuthStore.getState().user?.uid && (
+                            {project.uid === user?.uid && (
                               <button 
                                 onClick={() => handleRemoveTeam(teamId)}
                                 className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-all"

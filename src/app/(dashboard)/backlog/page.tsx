@@ -51,6 +51,7 @@ export default function BacklogPage() {
   const [activeEditTask, setActiveEditTask] = useState<Task | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [localSearchQuery, setLocalSearchQuery] = useState("");
+  const [filterShared, setFilterShared] = useState(false);
 
   useEffect(() => {
     if (user?.uid) {
@@ -147,6 +148,11 @@ export default function BacklogPage() {
       return false;
     }
 
+    // Shared filter
+    if (filterShared && projects[task.projectId]?.uid === user?.uid) {
+      return false;
+    }
+
     return true;
   }).sort((a, b) => {
     // Sort by creation date descending
@@ -230,6 +236,16 @@ export default function BacklogPage() {
         >
           {showDone ? 'Hide Done' : 'Show Done'}
         </button>
+
+        <button
+          onClick={() => setFilterShared(!filterShared)}
+          className={`text-xs font-bold px-3 py-1.5 rounded transition-all ${filterShared
+            ? 'bg-blue-100 text-blue-600 border border-blue-200'
+            : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+            }`}
+        >
+          {filterShared ? 'Shared Workspaces' : 'Shared Workspaces'}
+        </button>
       </div>
 
       {/* Table Container */}
@@ -262,8 +278,9 @@ export default function BacklogPage() {
                         <p className="font-bold text-foreground group-hover:text-primary transition-colors truncate">{task.title}</p>
                         <div className="flex items-center gap-2 mt-1">
                           {showWorkspace && (
-                            <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[8px] font-bold text-primary uppercase tracking-wider whitespace-nowrap">
+                            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider whitespace-nowrap ${projects[task.projectId]?.uid !== user?.uid ? 'bg-blue-100 text-blue-600' : 'bg-primary/10 text-primary'}`}>
                               {projects[task.projectId]?.title || "Unknown"}
+                              {projects[task.projectId]?.uid !== user?.uid && <span className="ml-1 opacity-70">Shared</span>}
                             </span>
                           )}
                           <p className="text-[10px] text-neutral-muted truncate">{task.description}</p>
