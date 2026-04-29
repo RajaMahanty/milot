@@ -323,10 +323,10 @@ export default function LearnPage() {
       </aside>
 
       <main className="flex-1">
-        <div className="mx-auto max-w-6xl px-6 pb-10 pt-4 lg:px-10 lg:pb-14">
+        <div className="mx-auto max-w-5xl px-6 pb-10 pt-4 lg:px-10 lg:pb-14">
           <Card className="overflow-hidden">
-            <CardHeader className="flex flex-col gap-4 border-b border-border bg-muted/50 px-6 py-6 sm:flex-row sm:items-center sm:justify-between">
-              <div className="space-y-2">
+            <CardHeader className="flex flex-col gap-5 border-b border-border bg-muted/30 px-6 py-5 sm:flex-row sm:items-start sm:justify-between">
+              <div className="space-y-2 max-w-3xl">
                 <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-2 text-sm font-semibold text-primary">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/20 text-primary">
                     {currentModule.icon}
@@ -342,7 +342,7 @@ export default function LearnPage() {
                   practical use.
                 </CardDescription>
               </div>
-              <div className="rounded-3xl bg-secondary px-4 py-3 text-sm font-medium text-foreground">
+              <div className="self-start rounded-3xl bg-secondary px-4 py-3 text-sm font-medium text-foreground">
                 Guided learning for every feature
               </div>
             </CardHeader>
