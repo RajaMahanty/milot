@@ -11,8 +11,20 @@ import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 
 export default function ProjectsPage() {
-  const { projects, setActiveProject, createProject, deleteProject, updateProject } = useProjectStore();
+  const { projects, setActiveProject, createProject, deleteProject, updateProject, fetchMoreProjects, hasMore, isLoading } = useProjectStore();
   const router = useRouter();
+  
+  const observer = React.useRef<IntersectionObserver | null>(null);
+  const lastProjectElementRef = React.useCallback((node: any) => {
+    if (isLoading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        fetchMoreProjects();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoading, hasMore, fetchMoreProjects]);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<string | null>(null);
@@ -100,9 +112,10 @@ export default function ProjectsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">
-        {Object.values(projects).map((project) => (
+        {Object.values(projects).map((project, index) => (
           <div
             key={project.id}
+            ref={index === Object.values(projects).length - 1 ? lastProjectElementRef : null}
             onClick={() => handleOpenProject(project.id)}
             className="group flex flex-col justify-between h-48 rounded-2xl border border-border bg-card p-5 shadow-soft hover:shadow-card hover:border-primary/30 transition-all cursor-pointer overflow-visible relative"
           >
@@ -166,6 +179,13 @@ export default function ProjectsPage() {
           <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">Create New Workspace</p>
         </div>
       </div>
+
+      {isLoading && (
+        <div className="mt-8 flex justify-center items-center gap-3 text-muted-foreground">
+          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-bold uppercase tracking-widest">Loading more workspaces...</span>
+        </div>
+      )}
 
       {/* Basic Create/Edit Modal */}
       <DialogPrimitive.Root open={isModalOpen} onOpenChange={setIsModalOpen}>

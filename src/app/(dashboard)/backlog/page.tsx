@@ -25,7 +25,19 @@ import {
 } from "lucide-react";
 
 export default function BacklogPage() {
-  const { tasks, fetchTasks, addTask, editTask, deleteTask } = useKanbanStore();
+  const { tasks, fetchTasks, fetchMoreTasks, hasMore, isLoading, addTask, editTask, deleteTask } = useKanbanStore();
+  const observer = React.useRef<IntersectionObserver | null>(null);
+
+  const lastTaskElementRef = React.useCallback((node: any) => {
+    if (isLoading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        fetchMoreTasks();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoading, hasMore, fetchMoreTasks]);
   const { user } = useAuthStore();
   const { projects, activeProjectId } = useProjectStore();
 
@@ -234,8 +246,12 @@ export default function BacklogPage() {
           </thead>
           <tbody className="divide-y divide-border">
             {filteredTasks.length > 0 ? (
-              filteredTasks.map((task) => (
-                <tr key={task.id} className="hover:bg-secondary/30 transition-colors group">
+              filteredTasks.map((task, index) => (
+                <tr 
+                  key={task.id} 
+                  ref={index === filteredTasks.length - 1 ? lastTaskElementRef : null}
+                  className="hover:bg-secondary/30 transition-colors group"
+                >
                   <td 
                     onClick={() => handleEditTask(task)}
                     className="px-6 py-4 max-w-[250px] cursor-pointer"
@@ -322,6 +338,13 @@ export default function BacklogPage() {
             )}
           </tbody>
         </table>
+        
+        {isLoading && (
+          <div className="p-8 flex justify-center items-center gap-3 text-muted-foreground bg-secondary/10">
+            <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-bold uppercase tracking-widest">Loading more tasks...</span>
+          </div>
+        )}
       </div>
 
       <TaskModal

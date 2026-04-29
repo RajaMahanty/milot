@@ -71,7 +71,7 @@ export default function ProfilePage() {
   const loadAllTasks = async () => {
     if (!user) return;
     try {
-       const tasksRecord = await taskService.fetchTasks(user.uid, "all");
+       const { tasks: tasksRecord } = await taskService.fetchTasks(user.uid, "all");
        setAllTasks(Object.values(tasksRecord));
     } catch (error) {
        console.error("Failed to load all tasks:", error);
@@ -201,7 +201,7 @@ export default function ProfilePage() {
       const data = await userService.getProfileByUsername(username);
       setPublicProfile(data);
       if (data) {
-        const tasksRecord = await taskService.fetchTasks(data.uid, "all");
+        const { tasks: tasksRecord } = await taskService.fetchTasks(data.uid, "all");
         const completed = Object.values(tasksRecord).filter(t => t.status === "done" || t.status === "archived").length;
         setPublicTaskStats({ completed });
       }

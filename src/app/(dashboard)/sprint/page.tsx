@@ -12,11 +12,22 @@ import { Layers, Plus } from "lucide-react";
 export default function SprintPage() {
   const { tasks, fetchTasks, searchQuery } = useKanbanStore();
   const { user } = useAuthStore();
-  const { sprints, createSprint, fetchSprints } = useSprintStore();
+  const { sprints, createSprint, fetchSprints, fetchMoreSprints, hasMore, isLoading } = useSprintStore();
   const { activeProjectId, projects } = useProjectStore();
 
+  const observer = React.useRef<IntersectionObserver | null>(null);
+  const lastSprintElementRef = React.useCallback((node: any) => {
+    if (isLoading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        fetchMoreSprints();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoading, hasMore, fetchMoreSprints]);
+
   const [isStartSprintModalOpen, setIsStartSprintModalOpen] = useState(false);
-  const [displayLimit, setDisplayLimit] = useState(3);
 
   useEffect(() => {
     if (user?.uid) {
@@ -54,7 +65,7 @@ export default function SprintPage() {
     }, {} as Record<string, typeof visibleSprints>);
 
     const projectIdsWithSprints = Object.keys(sprintsByProject);
-    const displayedProjectIds = projectIdsWithSprints.slice(0, displayLimit);
+    const displayedProjectIds = projectIdsWithSprints;
 
     return (
       <div className="flex flex-col gap-8 pb-8 h-full animate-in fade-in slide-in-from-bottom-2">
@@ -102,15 +113,10 @@ export default function SprintPage() {
             );
           })}
         </div>
-
-        {displayLimit < projectIdsWithSprints.length && (
-          <div className="flex justify-center mt-4">
-            <button
-              onClick={() => setDisplayLimit(prev => prev + 3)}
-              className="px-6 py-2.5 rounded-xl border border-border bg-card text-xs font-bold text-foreground hover:bg-secondary transition-all shadow-sm active:scale-95 cursor-pointer"
-            >
-              Load More Projects
-            </button>
+        {isLoading && (
+          <div className="mt-8 flex justify-center items-center gap-3 text-muted-foreground">
+            <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-bold uppercase tracking-widest">Loading more sprints...</span>
           </div>
         )}
       </div>
@@ -156,7 +162,7 @@ export default function SprintPage() {
         </div>
       ) : (
         <div className="flex flex-col gap-10">
-          {projectSprints.map(sprint => {
+          {projectSprints.map((sprint, index) => {
             let sprintTasks = allTasks.filter((t) => t.sprintId === sprint.id);
             if (searchQuery.trim()) {
               const q = searchQuery.toLowerCase();
@@ -167,11 +173,15 @@ export default function SprintPage() {
               );
             }
             return (
-              <ProjectSprintSection 
-                key={sprint.id}
-                activeSprint={sprint}
-                sprintTasks={sprintTasks}
-              />
+              <div 
+                key={sprint.id} 
+                ref={index === projectSprints.length - 1 ? lastSprintElementRef : null}
+              >
+                <ProjectSprintSection 
+                  activeSprint={sprint}
+                  sprintTasks={sprintTasks}
+                />
+              </div>
             );
           })}
         </div>

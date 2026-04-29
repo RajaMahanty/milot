@@ -56,6 +56,11 @@ interface KanbanState {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   completeSprint: (sprintId?: string) => Promise<void>;
+  
+  // Pagination
+  lastVisible: any | null;
+  hasMore: boolean;
+  fetchMoreTasks: () => Promise<void>;
 }
 
 
@@ -72,45 +77,90 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   error: null,
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
+  
+  lastVisible: null,
+  hasMore: true,
 
   fetchTasks: async () => {
     const user = useAuthStore.getState().user;
-
-    // Dynamically retrieve active project
     const { useProjectStore } = require('./useProjectStore');
     const activeProjectId = useProjectStore.getState().activeProjectId;
 
     if (!user || !activeProjectId) {
-      set({ tasks: {}, columns: defaultColumns, isLoading: false });
+      set({ tasks: {}, columns: defaultColumns, isLoading: false, lastVisible: null, hasMore: false });
       return;
     }
 
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, lastVisible: null, hasMore: true });
     try {
-      const dbTasks = await taskService.fetchTasks(user.uid, activeProjectId);
+      const { tasks: dbTasks, lastVisible: lastDoc } = await taskService.fetchTasks(user.uid, activeProjectId, 50);
       const cols = JSON.parse(JSON.stringify(defaultColumns));
 
       const projects = useProjectStore.getState().projects;
       const validDbTasks: Record<string, any> = {};
 
-      // Filter out orphaned tasks and populate columns
       Object.keys(dbTasks).forEach(taskId => {
         const t = dbTasks[taskId];
         if (projects[t.projectId]) {
           validDbTasks[taskId] = t;
-          if (cols[t.status]) {
-            cols[t.status].taskIds.push(t.id);
+          if (t.status !== "archived" && cols[t.status]) {
+            cols[t.status].taskIds.push(taskId);
           }
         }
       });
 
-      set({ tasks: validDbTasks, columns: cols, isLoading: false });
+      set({ 
+        tasks: validDbTasks, 
+        columns: cols, 
+        isLoading: false,
+        lastVisible: lastDoc,
+        hasMore: !!lastDoc
+      });
     } catch (err: any) {
       console.error(err);
-      toast.error("Failed to fetch tasks from database.");
       set({ error: err.message, isLoading: false });
     }
+  },
 
+  fetchMoreTasks: async () => {
+    const { lastVisible, hasMore, isLoading, tasks, columns } = get();
+    if (!hasMore || isLoading || !lastVisible) return;
+
+    const user = useAuthStore.getState().user;
+    const { useProjectStore } = require('./useProjectStore');
+    const activeProjectId = useProjectStore.getState().activeProjectId;
+
+    if (!user || !activeProjectId) return;
+
+    set({ isLoading: true });
+    try {
+      const { tasks: dbTasks, lastVisible: lastDoc } = await taskService.fetchTasks(user.uid, activeProjectId, 20, lastVisible);
+      
+      const projects = useProjectStore.getState().projects;
+      const newTasks = { ...tasks };
+      const newCols = JSON.parse(JSON.stringify(columns));
+
+      Object.keys(dbTasks).forEach(taskId => {
+        const t = dbTasks[taskId];
+        if (projects[t.projectId]) {
+          newTasks[taskId] = t;
+          if (t.status !== "archived" && newCols[t.status] && !newCols[t.status].taskIds.includes(taskId)) {
+            newCols[t.status].taskIds.push(taskId);
+          }
+        }
+      });
+
+      set({ 
+        tasks: newTasks, 
+        columns: newCols, 
+        isLoading: false,
+        lastVisible: lastDoc,
+        hasMore: !!lastDoc
+      });
+    } catch (err: any) {
+      console.error(err);
+      set({ isLoading: false });
+    }
   },
 
   addTask: async (task) => {

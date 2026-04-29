@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, orderBy } from "firebase/firestore";
 import { db } from "./firebase";
 
 const PROJECTS_COLLECTION = "projects";
@@ -13,14 +13,31 @@ export type Project = {
 
 export const projectService = {
   // Fetch projects for a specific user
-  async fetchProjects(uid: string): Promise<Record<string, Project>> {
-    const q = query(collection(db, PROJECTS_COLLECTION), where("uid", "==", uid));
+  async fetchProjects(
+    uid: string, 
+    pageSize: number = 20, 
+    lastVisible?: QueryDocumentSnapshot<DocumentData> | null
+  ): Promise<{ projects: Record<string, Project>, lastVisible: QueryDocumentSnapshot<DocumentData> | null }> {
+    let constraints: any[] = [
+      where("uid", "==", uid),
+      orderBy("createdAt", "desc"),
+      limit(pageSize)
+    ];
+
+    if (lastVisible) {
+      constraints.push(startAfter(lastVisible));
+    }
+
+    const q = query(collection(db, PROJECTS_COLLECTION), ...constraints);
     const querySnapshot = await getDocs(q);
+    
     const projects: Record<string, Project> = {};
     querySnapshot.forEach((doc) => {
       projects[doc.id] = doc.data() as Project;
     });
-    return projects;
+
+    const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
+    return { projects, lastVisible: lastVisibleDoc };
   },
 
   // Create a new project

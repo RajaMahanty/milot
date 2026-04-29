@@ -17,6 +17,11 @@ interface ProjectState {
   setActiveProject: (projectId: string | null) => void;
   updateProject: (projectId: string, updates: Partial<Project>) => Promise<void>;
   deleteProject: (projectId: string) => Promise<void>;
+  
+  // Pagination
+  lastVisible: any | null;
+  hasMore: boolean;
+  fetchMoreProjects: () => Promise<void>;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -24,6 +29,9 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   activeProjectId: "all",
   isLoading: false,
   error: null,
+  
+  lastVisible: null,
+  hasMore: true,
 
   fetchProjects: async () => {
     const user = useAuthStore.getState().user;
@@ -32,24 +40,26 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       return;
     }
 
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, lastVisible: null, hasMore: true });
     try {
-      const dbProjects = await projectService.fetchProjects(user.uid);
+      const { projects: dbProjects, lastVisible: lastDoc } = await projectService.fetchProjects(user.uid, 50);
       
       const projectIds = Object.keys(dbProjects);
       const activeId = get().activeProjectId;
       
-      // Maintain "all" or current active project
       let newActiveId = activeId || "all";
-      
-      // If active project was deleted, go back to "all"
       if (activeId && activeId !== "all" && !dbProjects[activeId]) {
         newActiveId = "all";
       }
 
-      set({ projects: dbProjects, isLoading: false, activeProjectId: newActiveId });
+      set({ 
+        projects: dbProjects, 
+        isLoading: false, 
+        activeProjectId: newActiveId,
+        lastVisible: lastDoc,
+        hasMore: !!lastDoc
+      });
       
-      // Sync tasks and sprints when projects are loaded
       if (newActiveId !== activeId) {
          requestAnimationFrame(() => {
             const { useSprintStore } = require('./useSprintStore');
@@ -61,6 +71,29 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     } catch (err: any) {
       console.error("Failed to fetch projects:", err);
       set({ error: err.message, isLoading: false });
+    }
+  },
+
+  fetchMoreProjects: async () => {
+    const { lastVisible, hasMore, isLoading, projects } = get();
+    if (!hasMore || isLoading || !lastVisible) return;
+
+    const user = useAuthStore.getState().user;
+    if (!user?.uid) return;
+
+    set({ isLoading: true });
+    try {
+      const { projects: dbProjects, lastVisible: lastDoc } = await projectService.fetchProjects(user.uid, 20, lastVisible);
+      
+      set({ 
+        projects: { ...projects, ...dbProjects },
+        isLoading: false,
+        lastVisible: lastDoc,
+        hasMore: !!lastDoc
+      });
+    } catch (err: any) {
+      console.error("Failed to fetch more projects:", err);
+      set({ isLoading: false });
     }
   },
 

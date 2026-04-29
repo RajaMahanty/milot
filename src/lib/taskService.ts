@@ -1,31 +1,40 @@
-import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, orderBy } from "firebase/firestore";
 import { db } from "./firebase";
 import { Task } from "@/store/useTaskStore";
 
 const TASKS_COLLECTION = "tasks";
 
 export const taskService = {
-  async fetchTasks(uid: string, projectId?: string | null): Promise<Record<string, Task>> {
-    let q;
+  async fetchTasks(
+    uid: string, 
+    projectId?: string | null, 
+    pageSize: number = 20, 
+    lastVisible?: QueryDocumentSnapshot<DocumentData> | null
+  ): Promise<{ tasks: Record<string, Task>, lastVisible: QueryDocumentSnapshot<DocumentData> | null }> {
+    let constraints: any[] = [
+      where("uid", "==", uid),
+      orderBy("createdAt", "desc"),
+      limit(pageSize)
+    ];
+
     if (projectId && projectId !== "all") {
-      q = query(
-        collection(db, TASKS_COLLECTION), 
-        where("uid", "==", uid),
-        where("projectId", "==", projectId)
-      );
-    } else {
-      q = query(
-        collection(db, TASKS_COLLECTION), 
-        where("uid", "==", uid)
-      );
+      constraints.push(where("projectId", "==", projectId));
     }
+
+    if (lastVisible) {
+      constraints.push(startAfter(lastVisible));
+    }
+
+    const q = query(collection(db, TASKS_COLLECTION), ...constraints);
     const querySnapshot = await getDocs(q);
+    
     const tasks: Record<string, Task> = {};
     querySnapshot.forEach((doc) => {
-      const data = doc.data() as Task;
-      tasks[doc.id] = data;
+      tasks[doc.id] = doc.data() as Task;
     });
-    return tasks;
+
+    const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
+    return { tasks, lastVisible: lastVisibleDoc };
   },
 
   // Create a new task (assumes uid is already set on the task object)

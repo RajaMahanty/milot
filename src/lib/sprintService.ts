@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where, orderBy } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where, orderBy, limit, startAfter, QueryDocumentSnapshot, DocumentData } from "firebase/firestore";
 import { db } from "./firebase";
 
 const SPRINTS_COLLECTION = "sprints";
@@ -16,28 +16,36 @@ export type Sprint = {
 };
 
 export const sprintService = {
-  async fetchSprints(uid: string, projectId: string): Promise<Sprint[]> {
-    let q;
+  async fetchSprints(
+    uid: string, 
+    projectId: string,
+    pageSize: number = 20,
+    lastVisible?: QueryDocumentSnapshot<DocumentData> | null
+  ): Promise<{ sprints: Sprint[], lastVisible: QueryDocumentSnapshot<DocumentData> | null }> {
+    let constraints: any[] = [
+      where("uid", "==", uid),
+      orderBy("createdAt", "desc"),
+      limit(pageSize)
+    ];
+
     if (projectId && projectId !== "all") {
-      q = query(
-        collection(db, SPRINTS_COLLECTION), 
-        where("uid", "==", uid),
-        where("projectId", "==", projectId)
-      );
-    } else {
-      q = query(
-        collection(db, SPRINTS_COLLECTION), 
-        where("uid", "==", uid)
-      );
+      constraints.push(where("projectId", "==", projectId));
     }
+
+    if (lastVisible) {
+      constraints.push(startAfter(lastVisible));
+    }
+
+    const q = query(collection(db, SPRINTS_COLLECTION), ...constraints);
     const querySnapshot = await getDocs(q);
+    
     const sprints: Sprint[] = [];
     querySnapshot.forEach((doc) => {
       sprints.push(doc.data() as Sprint);
     });
-    
-    // Sort by createdAt desc in memory to avoid needing composite indexes
-    return sprints.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    const lastVisibleDoc = querySnapshot.docs[querySnapshot.docs.length - 1] || null;
+    return { sprints, lastVisible: lastVisibleDoc };
   },
 
   // Create a new sprint

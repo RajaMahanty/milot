@@ -16,6 +16,11 @@ interface SprintState {
   updateSprint: (id: string, updates: Partial<Sprint>) => Promise<void>;
   activateSprint: (id: string) => Promise<void>;
   completeActiveSprint: () => Promise<void>;
+  
+  // Pagination
+  lastVisible: any | null;
+  hasMore: boolean;
+  fetchMoreSprints: () => Promise<void>;
 }
 
 export const useSprintStore = create<SprintState>((set, get) => ({
@@ -23,6 +28,9 @@ export const useSprintStore = create<SprintState>((set, get) => ({
   activeSprintId: null,
   isLoading: false,
   error: null,
+  
+  lastVisible: null,
+  hasMore: true,
 
   fetchSprints: async () => {
     const user = useAuthStore.getState().user;
@@ -32,18 +40,45 @@ export const useSprintStore = create<SprintState>((set, get) => ({
       return;
     }
 
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, lastVisible: null, hasMore: true });
     try {
-      const fetchedSprints = await sprintService.fetchSprints(user.uid, activeProjectId);
+      const { sprints: fetchedSprints, lastVisible: lastDoc } = await sprintService.fetchSprints(user.uid, activeProjectId, 50);
       const activeSprint = fetchedSprints.find(s => s.status === 'active');
       set({ 
         sprints: fetchedSprints, 
         activeSprintId: activeSprint ? activeSprint.id : null,
-        isLoading: false 
+        isLoading: false,
+        lastVisible: lastDoc,
+        hasMore: !!lastDoc
       });
     } catch (err: any) {
       console.error(err);
       set({ error: err.message, isLoading: false });
+    }
+  },
+
+  fetchMoreSprints: async () => {
+    const { lastVisible, hasMore, isLoading, sprints } = get();
+    if (!hasMore || isLoading || !lastVisible) return;
+
+    const user = useAuthStore.getState().user;
+    const activeProjectId = useProjectStore.getState().activeProjectId;
+
+    if (!user || !activeProjectId) return;
+
+    set({ isLoading: true });
+    try {
+      const { sprints: fetchedSprints, lastVisible: lastDoc } = await sprintService.fetchSprints(user.uid, activeProjectId, 20, lastVisible);
+      
+      set({ 
+        sprints: [...sprints, ...fetchedSprints],
+        isLoading: false,
+        lastVisible: lastDoc,
+        hasMore: !!lastDoc
+      });
+    } catch (err: any) {
+      console.error(err);
+      set({ isLoading: false });
     }
   },
 
