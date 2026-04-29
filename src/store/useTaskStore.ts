@@ -27,6 +27,7 @@ export interface Task {
   status: "todo" | "in-progress" | "done" | "archived";
   priority?: "low" | "medium" | "high";
   sprintId?: string;
+  boardId?: string;
   assignedTo?: string;
   dueDate?: string;
   storyPoints?: number;

@@ -11,6 +11,7 @@ import {
 
 import { useProjectStore } from "@/store/useProjectStore";
 import { useSprintStore } from "@/store/useSprintStore";
+import { useBoardStore } from "@/store/useBoardStore";
 import { Task, SubTask, Comment } from "@/store/useTaskStore";
 import {
   CheckCircle2,
@@ -26,6 +27,9 @@ import {
   AlignLeft,
   ChevronRight,
   Trash2,
+  ChevronDown,
+  Clock,
+  LayoutGrid,
   MessageSquare,
   Layers
 } from "lucide-react";
@@ -48,6 +52,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [dueDate, setDueDate] = useState("");
   const [projectId, setProjectId] = useState<string>("");
   const [sprintId, setSprintId] = useState<string>("");
+  const [boardId, setBoardId] = useState<string>("");
   const [storyPoints, setStoryPoints] = useState<string>("");
 
   const [subtasks, setSubtasks] = useState<SubTask[]>([]);
@@ -63,6 +68,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
   const { projects, activeProjectId } = useProjectStore();
   const { sprints, activeSprintId } = useSprintStore();
+  const { boards, activeBoardId } = useBoardStore();
   const { user } = useAuthStore();
   const projectList = useMemo(() => Object.values(projects), [projects]);
 
@@ -85,6 +91,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setDueDate(initialData.dueDate || "");
         setProjectId(initialData.projectId);
         setSprintId(initialData.sprintId || "");
+        setBoardId(initialData.boardId || "");
         setStoryPoints(initialData.storyPoints?.toString() || "");
         setSubtasks(initialData.subtasks || []);
         setComments(initialData.comments || []);
@@ -100,6 +107,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setComments([]);
         setProjectId(activeProjectId && activeProjectId !== "all" ? activeProjectId : projectList[0]?.id || "");
         setSprintId(activeSprintId || "");
+        setBoardId(activeBoardId || "");
         currentTaskId.current = "new";
       }
       
@@ -137,6 +145,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
           dueDate: dueDate || undefined,
           projectId: projectId,
           sprintId: sprintId || undefined,
+          boardId: boardId || undefined,
           storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
           subtasks,
           comments,
@@ -148,7 +157,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
     const timeout = setTimeout(saveChanges, 500);
     return () => clearTimeout(timeout);
-  }, [title, description, status, priority, dueDate, projectId, sprintId, storyPoints, subtasks, comments]);
+  }, [title, description, status, priority, dueDate, projectId, sprintId, boardId, storyPoints, subtasks, comments]);
 
   const handleSave = () => {
     if (!title.trim() || !projectId) return;
@@ -161,6 +170,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       dueDate: dueDate || undefined,
       projectId: projectId,
       sprintId: sprintId || undefined,
+      boardId: boardId || undefined,
       storyPoints: storyPoints ? parseInt(storyPoints, 10) : undefined,
       subtasks,
       comments,
@@ -362,7 +372,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     placeholder="Add a detailed description..."
-                    className="w-full min-h-[160px] bg-transparent border-none p-4 text-sm font-medium text-slate-700 dark:text-slate-300 focus:ring-0 resize-none leading-relaxed"
+                    className="w-full bg-transparent border-none focus:ring-0 text-sm text-slate-600 dark:text-slate-400 placeholder:text-slate-300 dark:placeholder:text-slate-700 min-h-[120px] py-3 px-4 leading-relaxed resize-y"
                   />
                 </div>
               </div>
@@ -547,6 +557,26 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       <option value="" disabled>Select Project</option>
                       {projectList.map(p => (
                         <option key={p.id} value={p.id}>{p.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Board Field */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-slate-400">
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Board</span>
+                    </div>
+                    <select
+                      value={boardId}
+                      onChange={(e) => setBoardId(e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
+                    >
+                      <option value="">No Board (General)</option>
+                      {Object.values(boards)
+                        .filter(b => b.projectId === projectId)
+                        .map(b => (
+                          <option key={b.id} value={b.id}>{b.name}</option>
                       ))}
                     </select>
                   </div>

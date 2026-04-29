@@ -5,6 +5,8 @@ import Column from "./Column";
 import { TaskModal } from "@/components/task/TaskModal";
 import { useKanbanStore, Task } from "@/store/useTaskStore";
 import { useAuthStore } from "@/store/useAuthStore";
+import { useBoardStore } from "@/store/useBoardStore";
+import { useProjectStore } from "@/store/useProjectStore";
 import { TaskCard } from "@/components/task/TaskCard";
 import { toast } from "@/store/useToastStore";
 
@@ -32,8 +34,11 @@ import {
   SlidersHorizontal, 
   UserPlus, 
   ChevronDown,
-  Pencil,
-  Trash2
+  Trash2,
+  Layout,
+  LayoutGrid,
+  MoreVertical,
+  Pencil
 } from "lucide-react";
 
 
@@ -55,6 +60,7 @@ export default function Board() {
   const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [activeEditTask, setActiveEditTask] = useState<Task | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [deleteBoardId, setDeleteBoardId] = useState<string | null>(null);
 
 
   // Filter States
@@ -69,6 +75,44 @@ export default function Board() {
 
 
   const { columns, tasks, addTask, editTask, deleteTask, moveTask, fetchTasks, isLoading, searchQuery, setSearchQuery } = useKanbanStore();
+  const { boards, activeBoardId, setActiveBoard, createBoard, deleteBoard, updateBoard } = useBoardStore();
+  const { activeProjectId, projects } = useProjectStore();
+
+  const [isAddingBoard, setIsAddingBoard] = useState(false);
+  const [newBoardName, setNewBoardName] = useState("");
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const [tempDescription, setTempDescription] = useState("");
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [editingBoardId, setEditingBoardId] = useState<string | null>(null);
+  const [tempBoardName, setTempBoardName] = useState("");
+
+  const activeProject = activeProjectId && activeProjectId !== "all" ? projects[activeProjectId] : null;
+
+  const handleCreateBoard = async () => {
+    if (!newBoardName.trim()) return;
+    await createBoard(newBoardName.trim());
+    setNewBoardName("");
+    setIsAddingBoard(false);
+  };
+
+  const handleRenameBoard = async () => {
+    if (editingBoardId && tempBoardName.trim()) {
+      await updateBoard(editingBoardId, { name: tempBoardName.trim() });
+      setEditingBoardId(null);
+      toast.success("Board renamed!");
+    } else {
+      setEditingBoardId(null);
+    }
+  };
+
+  const handleSaveDescription = async () => {
+    if (activeProjectId && activeProjectId !== "all") {
+      const { updateProject } = useProjectStore.getState();
+      await updateProject(activeProjectId, { description: tempDescription });
+      setIsEditingDescription(false);
+      toast.success("Project description updated!");
+    }
+  };
 
 
   const { user } = useAuthStore();
@@ -105,6 +149,7 @@ export default function Board() {
         priority: data.priority,
         dueDate: data.dueDate,
         projectId: data.projectId as string,
+        boardId: activeBoardId || undefined,
         createdAt: new Date().toISOString(),
         storyPoints: data.storyPoints,
         subtasks: data.subtasks,
@@ -184,12 +229,81 @@ export default function Board() {
   return (
     <div className="flex h-full flex-col">
       {/* Board Header */}
-      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+      <div className="mb-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex-1">
           <h2 className="text-3xl font-bold tracking-tight text-foreground">
-            Kanban Board
+            {activeProject ? activeProject.title : "Kanban Board"}
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">Manage and track your team's project tasks.</p>
+          
+          {activeProject ? (
+            <div className="mt-2 max-w-full pr-10">
+              {isEditingDescription ? (
+                <div className="flex flex-col gap-2 animate-in fade-in zoom-in-95 duration-200">
+                  <textarea
+                    autoFocus
+                    value={tempDescription}
+                    onChange={(e) => setTempDescription(e.target.value)}
+                    onBlur={handleSaveDescription}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSaveDescription();
+                      }
+                      if (e.key === 'Escape') {
+                        setIsEditingDescription(false);
+                        setTempDescription(activeProject.description || "");
+                      }
+                    }}
+                    className="w-full min-h-[150px] rounded-xl border border-primary/30 bg-card px-4 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 leading-relaxed resize-y"
+                    placeholder="Enter project description..."
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button 
+                      onMouseDown={(e) => e.preventDefault()} // Prevent blur before click
+                      onClick={handleSaveDescription}
+                      className="text-[10px] font-bold text-primary hover:underline"
+                    >
+                      Save
+                    </button>
+                    <button 
+                      onClick={() => setIsEditingDescription(false)}
+                      className="text-[10px] font-bold text-muted-foreground hover:underline"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div 
+                  onDoubleClick={() => {
+                    setTempDescription(activeProject.description || "");
+                    setIsEditingDescription(true);
+                  }}
+                  className="group relative cursor-text"
+                  title="Double click to edit description"
+                >
+                  <p className={`text-sm text-muted-foreground leading-relaxed transition-all ${!isExpanded ? 'line-clamp-2' : ''}`}>
+                    {activeProject.description || "No description provided. Double-click to add one."}
+                  </p>
+                  
+                  {activeProject.description && activeProject.description.length > 150 && (
+                    <button 
+                      onClick={() => setIsExpanded(!isExpanded)}
+                      className="text-[10px] font-bold text-primary hover:underline mt-1 flex items-center gap-0.5"
+                    >
+                      {isExpanded ? 'Show Less' : 'Read More'}
+                    </button>
+                  )}
+                  
+                  <div className="absolute -right-6 top-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Pencil className="h-3 w-3 text-muted-foreground/50" />
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground mt-1">Manage and track your team's project tasks.</p>
+          )}
         </div>
         
         <div className="flex flex-wrap items-center gap-3">
@@ -226,6 +340,84 @@ export default function Board() {
             New Task
           </button>
         </div>
+      </div>
+
+      {/* Board Tabs */}
+      <div className="flex items-center gap-1 border-b border-border mb-6">
+        {Object.values(boards).map((board) => (
+          <div key={board.id} className="relative group">
+            {editingBoardId === board.id ? (
+              <div className="px-4 py-2 animate-in fade-in zoom-in-95 duration-150">
+                <input
+                  autoFocus
+                  value={tempBoardName}
+                  onChange={(e) => setTempBoardName(e.target.value)}
+                  onBlur={handleRenameBoard}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleRenameBoard();
+                    if (e.key === 'Escape') setEditingBoardId(null);
+                  }}
+                  className="h-7 w-32 rounded-lg border border-primary/30 bg-card px-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => setActiveBoard(board.id)}
+                onDoubleClick={() => {
+                  setEditingBoardId(board.id);
+                  setTempBoardName(board.name);
+                }}
+                className={`px-6 py-3 text-sm font-bold transition-all relative ${activeBoardId === board.id ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+                title="Double click to rename board"
+              >
+                {board.name}
+                {activeBoardId === board.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
+              </button>
+            )}
+            <button 
+              onClick={(e) => { e.stopPropagation(); setDeleteBoardId(board.id); }}
+              className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 p-1 bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center transition-opacity"
+            >
+              <Trash2 className="h-2 w-2" />
+            </button>
+          </div>
+        ))}
+        
+        {isAddingBoard ? (
+          <div className="flex items-center gap-2 px-4 py-2 animate-in slide-in-from-left-2 duration-200">
+            <input 
+              autoFocus
+              type="text" 
+              placeholder="Board name..." 
+              value={newBoardName}
+              onChange={(e) => setNewBoardName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreateBoard()}
+              className="h-8 rounded-lg border border-border bg-card px-3 text-xs font-medium focus:border-primary focus:outline-none"
+            />
+            <button 
+              onClick={handleCreateBoard}
+              className="text-[10px] font-bold text-primary hover:underline"
+            >
+              Add
+            </button>
+            <button 
+              onClick={() => { setIsAddingBoard(false); setNewBoardName(""); }}
+              className="text-[10px] font-bold text-muted-foreground hover:underline"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          activeProjectId && activeProjectId !== "all" && (
+            <button
+              onClick={() => setIsAddingBoard(true)}
+              className="px-6 py-3 text-sm font-bold text-muted-foreground hover:text-foreground transition-all flex items-center gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add Board
+            </button>
+          )
+        )}
       </div>
 
       {showSearch && (
@@ -309,6 +501,14 @@ export default function Board() {
               Object.values(columns).map((column) => {
                 let columnTasks = column.taskIds.map((taskId) => tasks[taskId]).filter(Boolean);
 
+                // Filter by Board
+                if (activeBoardId) {
+                  columnTasks = columnTasks.filter(t => t.boardId === activeBoardId);
+                } else if (Object.keys(boards).length > 0) {
+                  // If boards exist but none selected (shouldn't happen with auto-select), show none or handle
+                  columnTasks = columnTasks.filter(t => !t.boardId);
+                }
+
                 if (filterPriority) {
                    columnTasks = columnTasks.filter(t => t.priority === filterPriority);
                 }
@@ -350,6 +550,8 @@ export default function Board() {
                   <tbody className="divide-y divide-border">
                     {Object.values(tasks)
                       .filter(t => {
+                        if (activeBoardId && t.boardId !== activeBoardId) return false;
+                        if (!activeBoardId && Object.keys(boards).length > 0 && t.boardId) return false;
                         if (filterPriority && t.priority !== filterPriority) return false;
                         if (filterAssignee && !t.assignedTo) return false;
                         if (searchQuery.trim()) {
@@ -426,6 +628,19 @@ export default function Board() {
         onConfirm={confirmDeleteTask}
         title="Delete Task?"
         description="Are you sure you want to permanently delete this task? This cannot be undone."
+      />
+
+      <ConfirmDelete 
+        open={!!deleteBoardId}
+        onClose={() => setDeleteBoardId(null)}
+        onConfirm={() => {
+          if (deleteBoardId) {
+            deleteBoard(deleteBoardId);
+            setDeleteBoardId(null);
+          }
+        }}
+        title="Delete Board?"
+        description="Are you sure you want to permanently delete this board? All tasks in this board will remain in your project but won't be visible on this board view anymore."
       />
     </div>
 

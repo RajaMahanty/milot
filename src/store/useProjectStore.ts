@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { projectService, Project } from '@/lib/projectService';
 import { useAuthStore } from './useAuthStore';
 import { useKanbanStore } from './useTaskStore';
+import { useBoardStore } from './useBoardStore';
 
 export type { Project };
 
@@ -54,6 +55,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
             const { useSprintStore } = require('./useSprintStore');
             useKanbanStore.getState().fetchTasks();
             useSprintStore.getState().fetchSprints();
+            useBoardStore.getState().fetchBoards();
          });
       }
     } catch (err: any) {
@@ -104,10 +106,11 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     if (currentActiveId === projectId) return;
 
     set({ activeProjectId: projectId });
-    // Trigger task and sprint fetch for the new project state
+    // Trigger task, sprint and board fetch for the new project state
     const { useSprintStore } = require('./useSprintStore');
     useKanbanStore.getState().fetchTasks();
     useSprintStore.getState().fetchSprints();
+    useBoardStore.getState().fetchBoards();
   },
 
   updateProject: async (projectId, updates) => {
@@ -141,6 +144,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set({ projects: newProjects, activeProjectId: newActiveId });
     if (newActiveId !== activeProjectId) {
        useKanbanStore.getState().fetchTasks();
+       useBoardStore.getState().fetchBoards();
     }
 
     try {
