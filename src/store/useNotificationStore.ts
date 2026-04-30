@@ -67,8 +67,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
     set({ isLoading: true });
     try {
-      await notificationService.updateNotificationStatus(id, status);
-      
+      const isInvite = notification.type === 'team_invite' || notification.type === 'project_invite';
       if (status === 'accepted') {
         if (notification.type === 'team_invite' && notification.teamId) {
           await useTeamStore.getState().addMemberToTeam(notification.teamId, notification.toUid);
@@ -81,11 +80,21 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
         }
       }
 
-      set(state => ({
-        notifications: state.notifications.map(n => n.id === id ? { ...n, status } : n),
-        unreadCount: state.unreadCount - 1,
-        isLoading: false
-      }));
+      if (isInvite && (status === 'accepted' || status === 'declined')) {
+        await notificationService.deleteNotification(id);
+        set(state => ({
+          notifications: state.notifications.filter(n => n.id !== id),
+          unreadCount: Math.max(0, state.unreadCount - (notification.status === 'pending' ? 1 : 0)),
+          isLoading: false
+        }));
+      } else {
+        await notificationService.updateNotificationStatus(id, status);
+        set(state => ({
+          notifications: state.notifications.map(n => n.id === id ? { ...n, status } : n),
+          unreadCount: state.unreadCount - 1,
+          isLoading: false
+        }));
+      }
     } catch (err: any) {
       console.error(err);
       set({ isLoading: false });

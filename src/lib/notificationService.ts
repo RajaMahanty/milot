@@ -51,7 +51,12 @@ export const notificationService = {
       notifications.push(doc.data() as Notification);
     });
     // Sort in memory to avoid missing index errors in firestore for dev
-    return notifications.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    return notifications
+      .filter(n => !(
+        (n.type === 'team_invite' || n.type === 'project_invite') &&
+        (n.status === 'accepted' || n.status === 'declined')
+      ))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   },
 
   async updateNotificationStatus(id: string, status: Notification['status']): Promise<void> {
