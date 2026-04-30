@@ -116,7 +116,14 @@ export const useBoardStore = create<BoardState>((set, get) => ({
   },
 
   deleteBoard: async (boardId) => {
-    const prevBoards = { ...get().boards };
+    const currentBoards = get().boards;
+    const boardCount = Object.keys(currentBoards).length;
+    if (boardCount <= 1) {
+      toast.warning("You cannot delete the last remaining board.");
+      return;
+    }
+
+    const prevBoards = { ...currentBoards };
     const newBoards = { ...prevBoards };
     delete newBoards[boardId];
 

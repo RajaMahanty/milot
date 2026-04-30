@@ -480,44 +480,57 @@ export default function Board() {
       >
         {/* Board Tabs */}
         <div className="flex items-center gap-1 border-b border-border mb-6">
-          {Object.values(boards).map((board) => (
-            <div key={board.id} className="relative group">
-              {editingBoardId === board.id ? (
-                <div className="px-4 py-2 animate-in fade-in zoom-in-95 duration-150">
-                  <input
-                    autoFocus
-                    value={tempBoardName}
-                    onChange={(e) => setTempBoardName(e.target.value)}
-                    onBlur={handleRenameBoard}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") handleRenameBoard();
-                      if (e.key === "Escape") setEditingBoardId(null);
+          {Object.values(boards).map((board) => {
+            const canDeleteBoard = Object.values(boards).length > 1;
+            return (
+              <div key={board.id} className="relative group">
+                {editingBoardId === board.id ? (
+                  <div className="px-4 py-2 animate-in fade-in zoom-in-95 duration-150">
+                    <input
+                      autoFocus
+                      value={tempBoardName}
+                      onChange={(e) => setTempBoardName(e.target.value)}
+                      onBlur={handleRenameBoard}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleRenameBoard();
+                        if (e.key === "Escape") setEditingBoardId(null);
+                      }}
+                      className="h-7 w-32 rounded-lg border border-primary/30 bg-card px-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
+                    />
+                  </div>
+                ) : (
+                  <DroppableBoardTab
+                    board={board}
+                    isActive={activeBoardId === board.id}
+                    onSelect={() => setActiveBoard(board.id)}
+                    onDoubleClick={() => {
+                      setEditingBoardId(board.id);
+                      setTempBoardName(board.name);
                     }}
-                    className="h-7 w-32 rounded-lg border border-primary/30 bg-card px-2 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20"
                   />
-                </div>
-              ) : (
-                <DroppableBoardTab
-                  board={board}
-                  isActive={activeBoardId === board.id}
-                  onSelect={() => setActiveBoard(board.id)}
-                  onDoubleClick={() => {
-                    setEditingBoardId(board.id);
-                    setTempBoardName(board.name);
-                  }}
-                />
-              )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDeleteBoardId(board.id);
-                }}
-                className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 p-1 bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center transition-opacity"
-              >
-                <Trash2 className="h-2 w-2" />
-              </button>
-            </div>
-          ))}
+                )}
+                {canDeleteBoard ? (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteBoardId(board.id);
+                    }}
+                    className="absolute -top-1 -right-1 opacity-0 group-hover:opacity-100 p-1 bg-destructive text-destructive-foreground rounded-full h-4 w-4 flex items-center justify-center transition-opacity"
+                    aria-label="Delete board"
+                  >
+                    <Trash2 className="h-2 w-2" />
+                  </button>
+                ) : (
+                  <div
+                    className="absolute -top-1 -right-1 p-1 rounded-full h-4 w-4 bg-muted/20 text-muted-foreground flex items-center justify-center"
+                    title="Cannot delete the last board"
+                  >
+                    <Trash2 className="h-2 w-2" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {isAddingBoard ? (
             <div className="flex items-center gap-2 px-4 py-2 animate-in slide-in-from-left-2 duration-200">
