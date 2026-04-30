@@ -23,6 +23,9 @@ Respond ONLY with a valid JSON object matching this structure:
 }
 Do not include markdown formatting like backticks around the json.`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -32,14 +35,17 @@ Do not include markdown formatting like backticks around the json.`;
         "X-Title": "TaskMatrix",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-lite-001",
+        model: "openai/gpt-4o-mini",
         messages: [
           { role: "system", content: "You are a helpful assistant that returns only JSON." },
           { role: "user", content: prompt }
         ],
         response_format: { type: "json_object" }
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
     
@@ -48,7 +54,12 @@ Do not include markdown formatting like backticks around the json.`;
       return NextResponse.json({ error: "Failed to refine title" }, { status: response.status });
     }
 
-    const content = data.choices[0]?.message?.content;
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Unexpected response structure:", data);
+      return NextResponse.json({ error: "Unexpected response from AI" }, { status: 500 });
+    }
+
+    const content = data.choices[0].message.content;
     if (!content) {
       return NextResponse.json({ error: "Empty response from AI" }, { status: 500 });
     }

@@ -23,6 +23,9 @@ Respond ONLY with a valid JSON object matching this structure:
 }
 Include 3 to 5 sub-steps. Do not include markdown formatting or backticks.`;
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -32,7 +35,7 @@ Include 3 to 5 sub-steps. Do not include markdown formatting or backticks.`;
         "X-Title": "TaskMatrix", // Optional
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-lite-001",
+        model: "openai/gpt-4o-mini",
         messages: [
 
 
@@ -41,7 +44,10 @@ Include 3 to 5 sub-steps. Do not include markdown formatting or backticks.`;
         ],
         response_format: { type: "json_object" }
       }),
+      signal: controller.signal,
     });
+
+    clearTimeout(timeoutId);
 
     const data = await response.json();
     
@@ -50,7 +56,12 @@ Include 3 to 5 sub-steps. Do not include markdown formatting or backticks.`;
       return NextResponse.json({ error: "Failed to generate subtasks" }, { status: response.status });
     }
 
-    const content = data.choices[0]?.message?.content;
+    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
+      console.error("Unexpected response structure:", data);
+      return NextResponse.json({ error: "Unexpected response from AI" }, { status: 500 });
+    }
+
+    const content = data.choices[0].message.content;
     if (!content) {
       return NextResponse.json({ error: "Empty response from AI" }, { status: 500 });
     }

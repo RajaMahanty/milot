@@ -36,11 +36,10 @@ import {
   MessageSquare,
   Layers,
   Reply,
-  CornerDownRight
+  CornerDownRight,
 } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import { toast } from "@/store/useToastStore";
-
 
 type Props = {
   open: boolean;
@@ -52,7 +51,9 @@ type Props = {
 export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<"todo" | "in-progress" | "done" | "archived">("todo");
+  const [status, setStatus] = useState<
+    "todo" | "in-progress" | "done" | "archived"
+  >("todo");
   const [priority, setPriority] = useState<"low" | "medium" | "high">("medium");
   const [dueDate, setDueDate] = useState("");
   const [projectId, setProjectId] = useState<string>("");
@@ -67,13 +68,16 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [mentionQuery, setMentionQuery] = useState("");
-  const [mentionTarget, setMentionTarget] = useState<'comment' | 'reply' | null>(null);
+  const [mentionTarget, setMentionTarget] = useState<
+    "comment" | "reply" | null
+  >(null);
   const commentRef = useRef<HTMLTextAreaElement>(null);
   const replyRef = useRef<HTMLTextAreaElement>(null);
   const [assignedTo, setAssignedTo] = useState<string>("");
   const [isSaving, setIsSaving] = useState(false);
   const [isAIProcessing, setIsAIProcessing] = useState(false);
-  const [isAIDescriptionProcessing, setIsAIDescriptionProcessing] = useState(false);
+  const [isAIDescriptionProcessing, setIsAIDescriptionProcessing] =
+    useState(false);
   const [isAITitleProcessing, setIsAITitleProcessing] = useState(false);
   const hasLoadedInitial = useRef(false);
   const lastNotifiedAssignee = useRef<string | null>(null);
@@ -85,7 +89,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
   const { teams } = useTeamStore();
   const { sendNotification } = useNotificationStore();
   const { user } = useAuthStore();
-  
+
   const [projectMembers, setProjectMembers] = useState<UserProfile[]>([]);
 
   useEffect(() => {
@@ -95,13 +99,13 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       if (!project) return;
 
       const memberUids = new Set<string>(project.memberIds || []);
-      
+
       // Add team members
       if (project.teamIds) {
-        project.teamIds.forEach(teamId => {
-          const team = teams.find(t => t.id === teamId);
+        project.teamIds.forEach((teamId) => {
+          const team = teams.find((t) => t.id === teamId);
           if (team) {
-            team.memberIds.forEach(uid => memberUids.add(uid));
+            team.memberIds.forEach((uid) => memberUids.add(uid));
           }
         });
       }
@@ -124,7 +128,10 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     }
 
     // Only load if we haven't loaded for this specific task opening
-    if (open && (!hasLoadedInitial.current || (initialData?.id !== currentTaskId.current))) {
+    if (
+      open &&
+      (!hasLoadedInitial.current || initialData?.id !== currentTaskId.current)
+    ) {
       if (initialData) {
         setTitle(initialData.title);
         setDescription(initialData.description || "");
@@ -148,13 +155,17 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         setStoryPoints("");
         setSubtasks([]);
         setComments([]);
-        setProjectId(activeProjectId && activeProjectId !== "all" ? activeProjectId : projectList[0]?.id || "");
+        setProjectId(
+          activeProjectId && activeProjectId !== "all"
+            ? activeProjectId
+            : projectList[0]?.id || "",
+        );
         setSprintId(activeSprintId || "");
         setBoardId(activeBoardId || "");
         setAssignedTo("");
         currentTaskId.current = "new";
       }
-      
+
       // Delay enabling autosave to allow states to settle and avoid loop
       const timer = setTimeout(() => {
         hasLoadedInitial.current = true;
@@ -170,7 +181,6 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     }
   }, [open, initialData?.dueDate]);
 
-
   // Debounced Autosave
   useEffect(() => {
     // CRITICAL: Only autosave if we've fully loaded initial data and it's an edit
@@ -178,7 +188,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
     const saveChanges = async () => {
       if (!title.trim() || !projectId) return;
-      
+
       setIsSaving(true);
       try {
         await onSave({
@@ -202,7 +212,20 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
     const timeout = setTimeout(saveChanges, 500);
     return () => clearTimeout(timeout);
-  }, [title, description, status, priority, dueDate, projectId, sprintId, boardId, storyPoints, subtasks, comments, assignedTo]);
+  }, [
+    title,
+    description,
+    status,
+    priority,
+    dueDate,
+    projectId,
+    sprintId,
+    boardId,
+    storyPoints,
+    subtasks,
+    comments,
+    assignedTo,
+  ]);
 
   // Task Assignment Notification
   useEffect(() => {
@@ -212,16 +235,26 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     if (assignedTo === lastNotifiedAssignee.current) return;
 
     sendNotification({
-      type: 'task_assigned',
+      type: "task_assigned",
       toUid: assignedTo,
       taskId: initialData?.id || "new",
       taskTitle: title.trim(),
       projectId,
-      projectName: projects[projectId]?.title
+      projectName: projects[projectId]?.title,
     });
-    
+
     lastNotifiedAssignee.current = assignedTo;
-  }, [assignedTo, open, user?.uid, initialData?.id, initialData?.assignedTo, projectId, projects, title, sendNotification]);
+  }, [
+    assignedTo,
+    open,
+    user?.uid,
+    initialData?.id,
+    initialData?.assignedTo,
+    projectId,
+    projects,
+    title,
+    sendNotification,
+  ]);
 
   const handleSave = () => {
     if (!title.trim() || !projectId) return;
@@ -245,44 +278,48 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     toast.success("Task saved successfully!");
   };
 
-
   const addSubtask = () => {
     if (!newSubtask.trim()) return;
     const sub: SubTask = {
       id: crypto.randomUUID(),
       title: newSubtask.trim(),
-      completed: false
+      completed: false,
     };
     setSubtasks([...subtasks, sub]);
     setNewSubtask("");
   };
 
   const toggleSubtask = (id: string) => {
-    setSubtasks(subtasks.map(s => s.id === id ? { ...s, completed: !s.completed } : s));
+    setSubtasks(
+      subtasks.map((s) =>
+        s.id === id ? { ...s, completed: !s.completed } : s,
+      ),
+    );
   };
 
   const removeSubtask = (id: string) => {
-    setSubtasks(subtasks.filter(s => s.id !== id));
+    setSubtasks(subtasks.filter((s) => s.id !== id));
     toast.info("Subtask removed");
   };
 
-
   const editSubtask = (id: string, title: string) => {
-    setSubtasks(subtasks.map(s => s.id === id ? { ...s, title } : s));
+    setSubtasks(subtasks.map((s) => (s.id === id ? { ...s, title } : s)));
   };
 
   // Parse @username mentions from text and return matching member profiles
   const getMentionedUsers = (text: string) => {
     const matches = text.match(/@(\w+)/g) || [];
-    const usernames = matches.map(m => m.slice(1).toLowerCase());
-    return projectMembers.filter(m => usernames.includes(m.username?.toLowerCase() || ""));
+    const usernames = matches.map((m) => m.slice(1).toLowerCase());
+    return projectMembers.filter((m) =>
+      usernames.includes(m.username?.toLowerCase() || ""),
+    );
   };
 
   // Detect @ in textarea and show member suggestions
   const handleTextareaInput = (
     e: React.ChangeEvent<HTMLTextAreaElement>,
     setValue: (v: string) => void,
-    target: 'comment' | 'reply'
+    target: "comment" | "reply",
   ) => {
     const value = e.target.value;
     setValue(value);
@@ -298,15 +335,24 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     }
   };
 
-  const mentionSuggestions = mentionQuery !== null && mentionTarget
-    ? projectMembers.filter(m =>
-        m.uid !== user?.uid &&
-        (m.username?.toLowerCase().startsWith(mentionQuery.toLowerCase()) ||
-         m.displayName?.toLowerCase().startsWith(mentionQuery.toLowerCase()))
-      )
-    : [];
+  const mentionSuggestions =
+    mentionQuery !== null && mentionTarget
+      ? projectMembers.filter(
+          (m) =>
+            m.uid !== user?.uid &&
+            (m.username?.toLowerCase().startsWith(mentionQuery.toLowerCase()) ||
+              m.displayName
+                ?.toLowerCase()
+                .startsWith(mentionQuery.toLowerCase())),
+        )
+      : [];
 
-  const insertMention = (member: UserProfile, currentText: string, setValue: (v: string) => void, ref: React.RefObject<HTMLTextAreaElement | null>) => {
+  const insertMention = (
+    member: UserProfile,
+    currentText: string,
+    setValue: (v: string) => void,
+    ref: React.RefObject<HTMLTextAreaElement | null>,
+  ) => {
     const cursor = ref.current?.selectionStart ?? currentText.length;
     const textBefore = currentText.slice(0, cursor);
     const textAfter = currentText.slice(cursor);
@@ -325,14 +371,14 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       authorId: user.uid,
       text: newComment.trim(),
       createdAt: new Date().toISOString(),
-      replies: []
+      replies: [],
     };
     setComments([comm, ...comments]);
 
     // Notify assignee (if not self)
     if (assignedTo && assignedTo !== user.uid && initialData?.id) {
       sendNotification({
-        type: 'task_comment',
+        type: "task_comment",
         toUid: assignedTo,
         taskId: initialData.id,
         taskTitle: title.trim(),
@@ -344,10 +390,10 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     }
 
     // Notify @mentioned users
-    getMentionedUsers(comm.text).forEach(m => {
+    getMentionedUsers(comm.text).forEach((m) => {
       if (m.uid !== user.uid && initialData?.id) {
         sendNotification({
-          type: 'mention',
+          type: "mention",
           toUid: m.uid,
           taskId: initialData.id,
           taskTitle: title.trim(),
@@ -369,19 +415,25 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       author: user.displayName || user.email || "Anonymous",
       authorId: user.uid,
       text: replyText.trim(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
     };
-    const parentComment = comments.find(c => c.id === commentId);
-    setComments(comments.map(c =>
-      c.id === commentId
-        ? { ...c, replies: [...(c.replies || []), reply] }
-        : c
-    ));
+    const parentComment = comments.find((c) => c.id === commentId);
+    setComments(
+      comments.map((c) =>
+        c.id === commentId
+          ? { ...c, replies: [...(c.replies || []), reply] }
+          : c,
+      ),
+    );
 
     // Notify original comment author
-    if (parentComment && parentComment.authorId !== user.uid && initialData?.id) {
+    if (
+      parentComment &&
+      parentComment.authorId !== user.uid &&
+      initialData?.id
+    ) {
       sendNotification({
-        type: 'comment_reply',
+        type: "comment_reply",
         toUid: parentComment.authorId,
         taskId: initialData.id,
         taskTitle: title.trim(),
@@ -393,10 +445,10 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
     }
 
     // Notify @mentioned users in reply
-    getMentionedUsers(reply.text).forEach(m => {
+    getMentionedUsers(reply.text).forEach((m) => {
       if (m.uid !== user.uid && initialData?.id) {
         sendNotification({
-          type: 'mention',
+          type: "mention",
           toUid: m.uid,
           taskId: initialData.id,
           taskTitle: title.trim(),
@@ -422,16 +474,24 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         body: JSON.stringify({ title, description }),
       });
       const data = await response.json();
+      if (!response.ok || data.error) {
+        toast.error(data.error || "Failed to generate subtasks via AI.");
+        return;
+      }
       if (data.substeps && Array.isArray(data.substeps)) {
-        const existingTitles = new Set(subtasks.map(s => s.title.toLowerCase().trim()));
+        const existingTitles = new Set(
+          subtasks.map((s) => s.title.toLowerCase().trim()),
+        );
         const uniqueNewSubs = data.substeps
-          .filter((text: string) => !existingTitles.has(text.toLowerCase().trim()))
+          .filter(
+            (text: string) => !existingTitles.has(text.toLowerCase().trim()),
+          )
           .map((text: string) => ({
             id: crypto.randomUUID(),
             title: text,
-            completed: false
+            completed: false,
           }));
-          
+
         if (uniqueNewSubs.length > 0) {
           setSubtasks([...subtasks, ...uniqueNewSubs]);
           toast.success("AI generated new subtasks!");
@@ -441,6 +501,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
       }
     } catch (error) {
       console.error("AI Generation failed", error);
+      toast.error("Failed to generate subtasks via AI.");
     } finally {
       setIsAIProcessing(false);
     }
@@ -459,9 +520,17 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         body: JSON.stringify({ title, description }),
       });
       const data = await response.json();
+      if (!response.ok || data.error) {
+        toast.error(data.error || "Failed to process description via AI.");
+        return;
+      }
       if (data.description) {
         setDescription(data.description);
-        toast.success(description ? "Description refined via AI!" : "Description generated via AI!");
+        toast.success(
+          description
+            ? "Description refined via AI!"
+            : "Description generated via AI!",
+        );
       }
     } catch (error) {
       console.error("AI Description Generation failed", error);
@@ -481,6 +550,10 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
         body: JSON.stringify({ title }),
       });
       const data = await response.json();
+      if (!response.ok || data.error) {
+        toast.error(data.error || "Failed to refine title via AI.");
+        return;
+      }
       if (data.title) {
         setTitle(data.title);
         toast.success("Title refined via AI!");
@@ -507,17 +580,21 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-slate-400 dark:text-slate-500 tracking-wider">
-                {initialData?.id ? `TASK-${initialData.id.substring(0, 8).toUpperCase()}` : "NEW TASK"}
+                {initialData?.id
+                  ? `TASK-${initialData.id.substring(0, 8).toUpperCase()}`
+                  : "NEW TASK"}
               </span>
               <ChevronRight className="h-3 w-3 text-slate-300" />
               <div className="flex flex-col">
-                <DialogTitle className="text-sm font-bold text-slate-900 dark:text-white">Issue Details</DialogTitle>
+                <DialogTitle className="text-sm font-bold text-slate-900 dark:text-white">
+                  Issue Details
+                </DialogTitle>
                 <DialogDescription className="sr-only">
-                  View and manage the details, subtasks, and comments for this task.
+                  View and manage the details, subtasks, and comments for this
+                  task.
                 </DialogDescription>
               </div>
             </div>
-
           </div>
           <div className="flex items-center gap-2">
             {isSaving && (
@@ -551,8 +628,8 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                 <textarea
                   ref={(el) => {
                     if (el) {
-                      el.style.height = 'auto';
-                      el.style.height = el.scrollHeight + 'px';
+                      el.style.height = "auto";
+                      el.style.height = el.scrollHeight + "px";
                     }
                   }}
                   value={title}
@@ -562,8 +639,8 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   className="w-full pr-28 text-3xl font-bold bg-transparent border-none p-0 focus:ring-0 placeholder:text-slate-200 dark:placeholder:text-slate-800 text-slate-900 dark:text-white resize-none leading-tight overflow-hidden"
                   onInput={(e) => {
                     const target = e.target as HTMLTextAreaElement;
-                    target.style.height = 'auto';
-                    target.style.height = target.scrollHeight + 'px';
+                    target.style.height = "auto";
+                    target.style.height = target.scrollHeight + "px";
                   }}
                 />
                 {title.trim() && (
@@ -571,13 +648,15 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                     onClick={refineAITitle}
                     disabled={isAITitleProcessing}
                     className={`absolute top-0 right-0 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-bold uppercase tracking-tighter transition-all shadow-sm ${
-                      isAITitleProcessing 
-                      ? 'bg-primary/20 text-primary animate-pulse cursor-wait' 
-                      : 'bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95'
+                      isAITitleProcessing
+                        ? "bg-primary/20 text-primary animate-pulse cursor-wait"
+                        : "bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95"
                     } disabled:opacity-50 disabled:pointer-events-none`}
                   >
-                    <Zap className={`h-2.5 w-2.5 ${isAITitleProcessing ? 'animate-bounce' : ''}`} />
-                    {isAITitleProcessing ? 'Refining...' : 'AI Refine'}
+                    <Zap
+                      className={`h-2.5 w-2.5 ${isAITitleProcessing ? "animate-bounce" : ""}`}
+                    />
+                    {isAITitleProcessing ? "Refining..." : "AI Refine"}
                   </button>
                 )}
               </div>
@@ -587,19 +666,27 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-500">
                     <AlignLeft className="h-4 w-4" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Description</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      Description
+                    </span>
                   </div>
                   <button
                     onClick={generateAIDescription}
                     disabled={isAIDescriptionProcessing || !title.trim()}
                     className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter transition-all shadow-sm ${
-                      isAIDescriptionProcessing 
-                      ? 'bg-primary/20 text-primary animate-pulse cursor-wait' 
-                      : 'bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95'
+                      isAIDescriptionProcessing
+                        ? "bg-primary/20 text-primary animate-pulse cursor-wait"
+                        : "bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95"
                     } disabled:opacity-50 disabled:pointer-events-none`}
                   >
-                    <Zap className={`h-2.5 w-2.5 ${isAIDescriptionProcessing ? 'animate-bounce' : ''}`} />
-                    {isAIDescriptionProcessing ? 'Thinking...' : description.trim() ? 'AI Refine' : 'AI Generate'}
+                    <Zap
+                      className={`h-2.5 w-2.5 ${isAIDescriptionProcessing ? "animate-bounce" : ""}`}
+                    />
+                    {isAIDescriptionProcessing
+                      ? "Thinking..."
+                      : description.trim()
+                        ? "AI Refine"
+                        : "AI Generate"}
                   </button>
                 </div>
                 <div className="rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 focus-within:border-primary/30 transition-colors">
@@ -617,24 +704,28 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-slate-500">
                     <CheckCircle2 className="h-4 w-4" />
-                    <span className="text-xs font-bold uppercase tracking-wider">Subtasks</span>
+                    <span className="text-xs font-bold uppercase tracking-wider">
+                      Subtasks
+                    </span>
                     <button
                       onClick={generateAISubtasks}
                       disabled={isAIProcessing || !title.trim()}
                       className={`ml-2 flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-tighter transition-all shadow-sm ${
-                        isAIProcessing 
-                        ? 'bg-primary/20 text-primary animate-pulse cursor-wait' 
-                        : 'bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95'
+                        isAIProcessing
+                          ? "bg-primary/20 text-primary animate-pulse cursor-wait"
+                          : "bg-primary/10 text-primary hover:bg-primary hover:text-white cursor-pointer active:scale-95"
                       } disabled:opacity-50 disabled:pointer-events-none`}
                     >
-                      <Zap className={`h-2.5 w-2.5 ${isAIProcessing ? 'animate-bounce' : ''}`} />
-                      {isAIProcessing ? 'Thinking...' : 'AI Break down'}
+                      <Zap
+                        className={`h-2.5 w-2.5 ${isAIProcessing ? "animate-bounce" : ""}`}
+                      />
+                      {isAIProcessing ? "Thinking..." : "AI Break down"}
                     </button>
                   </div>
                   <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 px-2 py-0.5 rounded-full">
-                    {subtasks.filter(s => s.completed).length} of {subtasks.length}
+                    {subtasks.filter((s) => s.completed).length} of{" "}
+                    {subtasks.length}
                   </span>
-
                 </div>
 
                 {/* Progress Bar */}
@@ -642,25 +733,34 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                     <div
                       className="h-full bg-primary transition-all duration-500"
-                      style={{ width: `${(subtasks.filter(s => s.completed).length / subtasks.length) * 100}%` }}
+                      style={{
+                        width: `${(subtasks.filter((s) => s.completed).length / subtasks.length) * 100}%`,
+                      }}
                     />
                   </div>
                 )}
 
                 <div className="space-y-2">
                   {subtasks.map((st) => (
-                    <div key={st.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 group transition-colors">
+                    <div
+                      key={st.id}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 group transition-colors"
+                    >
                       <button
                         onClick={() => toggleSubtask(st.id)}
-                        className={`transition-colors ${st.completed ? 'text-emerald-500' : 'text-slate-300 hover:text-slate-400'}`}
+                        className={`transition-colors ${st.completed ? "text-emerald-500" : "text-slate-300 hover:text-slate-400"}`}
                       >
-                        {st.completed ? <CheckCircle2 className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                        {st.completed ? (
+                          <CheckCircle2 className="h-5 w-5" />
+                        ) : (
+                          <Circle className="h-5 w-5" />
+                        )}
                       </button>
                       <input
                         type="text"
                         value={st.title}
                         onChange={(e) => editSubtask(st.id, e.target.value)}
-                        className={`flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 p-0 ${st.completed ? 'line-through text-slate-400' : 'text-slate-700 dark:text-slate-300'}`}
+                        className={`flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 p-0 ${st.completed ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-300"}`}
                       />
                       <button
                         onClick={() => removeSubtask(st.id)}
@@ -677,7 +777,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       type="text"
                       value={newSubtask}
                       onChange={(e) => setNewSubtask(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && addSubtask()}
+                      onKeyDown={(e) => e.key === "Enter" && addSubtask()}
                       placeholder="Add a subtask..."
                       className="flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 p-0 placeholder:text-slate-400"
                     />
@@ -697,7 +797,9 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
               <div className="space-y-6 pt-4">
                 <div className="flex items-center gap-2 text-slate-500">
                   <MessageSquare className="h-4 w-4" />
-                  <span className="text-xs font-bold uppercase tracking-wider">Activity</span>
+                  <span className="text-xs font-bold uppercase tracking-wider">
+                    Activity
+                  </span>
                 </div>
 
                 <div className="flex gap-4">
@@ -710,31 +812,46 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       <textarea
                         ref={commentRef}
                         value={newComment}
-                        onChange={(e) => handleTextareaInput(e, setNewComment, 'comment')}
+                        onChange={(e) =>
+                          handleTextareaInput(e, setNewComment, "comment")
+                        }
                         placeholder="Write a comment... Use @username to mention someone"
                         className="w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 px-4 py-3 text-sm font-medium focus:ring-2 focus:ring-primary/20 shadow-sm transition-all focus:border-primary/30"
                         rows={2}
                       />
                       {/* @mention suggestion list - appears ABOVE textarea */}
-                      {mentionTarget === 'comment' && mentionSuggestions.length > 0 && (
-                        <div className="absolute z-50 left-0 bottom-full mb-2 w-56 bg-card border border-border rounded-xl shadow-elevated overflow-hidden animate-in fade-in slide-in-from-bottom-2">
-                          {mentionSuggestions.map(m => (
-                            <button
-                              key={m.uid}
-                              onMouseDown={(e) => { e.preventDefault(); insertMention(m, newComment, setNewComment, commentRef); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-secondary transition-colors text-left"
-                            >
-                              <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">
-                                {m.displayName?.charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <p className="text-xs font-bold text-foreground leading-none">{m.displayName}</p>
-                                <p className="text-[9px] text-muted-foreground mt-0.5">@{m.username}</p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      {mentionTarget === "comment" &&
+                        mentionSuggestions.length > 0 && (
+                          <div className="absolute z-50 left-0 bottom-full mb-2 w-56 bg-card border border-border rounded-xl shadow-elevated overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                            {mentionSuggestions.map((m) => (
+                              <button
+                                key={m.uid}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  insertMention(
+                                    m,
+                                    newComment,
+                                    setNewComment,
+                                    commentRef,
+                                  );
+                                }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-secondary transition-colors text-left"
+                              >
+                                <div className="h-7 w-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold flex-shrink-0">
+                                  {m.displayName?.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-foreground leading-none">
+                                    {m.displayName}
+                                  </p>
+                                  <p className="text-[9px] text-muted-foreground mt-0.5">
+                                    @{m.username}
+                                  </p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                     </div>
 
                     <div className="flex justify-end">
@@ -760,9 +877,16 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       <div className="flex-1 min-w-0">
                         {/* Author + timestamp */}
                         <div className="flex items-baseline gap-2 mb-1">
-                          <span className="text-sm font-bold text-slate-900 dark:text-white">{comment.author}</span>
+                          <span className="text-sm font-bold text-slate-900 dark:text-white">
+                            {comment.author}
+                          </span>
                           <span className="text-[10px] font-medium text-slate-400">
-                            {new Date(comment.createdAt).toLocaleDateString()} at {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(comment.createdAt).toLocaleDateString()}{" "}
+                            at{" "}
+                            {new Date(comment.createdAt).toLocaleTimeString(
+                              [],
+                              { hour: "2-digit", minute: "2-digit" },
+                            )}
                           </span>
                         </div>
 
@@ -774,22 +898,29 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                         {/* Reply button */}
                         <button
                           onClick={() => {
-                            setReplyingToId(replyingToId === comment.id ? null : comment.id);
+                            setReplyingToId(
+                              replyingToId === comment.id ? null : comment.id,
+                            );
                             setReplyText("");
                           }}
                           className="mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-primary transition-colors"
                         >
                           <CornerDownRight className="h-3 w-3" />
-                          {replyingToId === comment.id ? "Cancel" : `Reply${
-                            comment.replies && comment.replies.length > 0 ? ` · ${comment.replies.length}` : ""
-                          }`}
+                          {replyingToId === comment.id
+                            ? "Cancel"
+                            : `Reply${
+                                comment.replies && comment.replies.length > 0
+                                  ? ` · ${comment.replies.length}`
+                                  : ""
+                              }`}
                         </button>
 
                         {/* Inline reply input */}
                         {replyingToId === comment.id && (
                           <div className="mt-3 flex gap-2.5 animate-in fade-in slide-in-from-top-1">
                             <div className="h-6 w-6 rounded-full bg-primary flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">
-                              {user?.displayName?.charAt(0).toUpperCase() || "U"}
+                              {user?.displayName?.charAt(0).toUpperCase() ||
+                                "U"}
                             </div>
                             <div className="flex-1">
                               {/* Reply textarea with @mention anchored above */}
@@ -798,7 +929,13 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                                   ref={replyRef}
                                   autoFocus
                                   value={replyText}
-                                  onChange={(e) => handleTextareaInput(e, setReplyText, 'reply')}
+                                  onChange={(e) =>
+                                    handleTextareaInput(
+                                      e,
+                                      setReplyText,
+                                      "reply",
+                                    )
+                                  }
                                   onKeyDown={(e) => {
                                     if (e.key === "Enter" && !e.shiftKey) {
                                       e.preventDefault();
@@ -810,25 +947,40 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                                   className="w-full rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-2 text-sm font-medium focus:ring-2 focus:ring-primary/20 shadow-sm transition-all focus:border-primary/30 resize-none"
                                 />
                                 {/* Reply @mention suggestions - appears ABOVE textarea */}
-                                {mentionTarget === 'reply' && mentionSuggestions.length > 0 && (
-                                  <div className="absolute z-50 left-0 bottom-full mb-2 w-52 bg-card border border-border rounded-xl shadow-elevated overflow-hidden animate-in fade-in slide-in-from-bottom-2">
-                                    {mentionSuggestions.map(m => (
-                                      <button
-                                        key={m.uid}
-                                        onMouseDown={(e) => { e.preventDefault(); insertMention(m, replyText, setReplyText, replyRef); }}
-                                        className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors text-left"
-                                      >
-                                        <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold flex-shrink-0">
-                                          {m.displayName?.charAt(0).toUpperCase()}
-                                        </div>
-                                        <div>
-                                          <p className="text-xs font-bold text-foreground leading-none">{m.displayName}</p>
-                                          <p className="text-[9px] text-muted-foreground mt-0.5">@{m.username}</p>
-                                        </div>
-                                      </button>
-                                    ))}
-                                  </div>
-                                )}
+                                {mentionTarget === "reply" &&
+                                  mentionSuggestions.length > 0 && (
+                                    <div className="absolute z-50 left-0 bottom-full mb-2 w-52 bg-card border border-border rounded-xl shadow-elevated overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                                      {mentionSuggestions.map((m) => (
+                                        <button
+                                          key={m.uid}
+                                          onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            insertMention(
+                                              m,
+                                              replyText,
+                                              setReplyText,
+                                              replyRef,
+                                            );
+                                          }}
+                                          className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-secondary transition-colors text-left"
+                                        >
+                                          <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[9px] font-bold flex-shrink-0">
+                                            {m.displayName
+                                              ?.charAt(0)
+                                              .toUpperCase()}
+                                          </div>
+                                          <div>
+                                            <p className="text-xs font-bold text-foreground leading-none">
+                                              {m.displayName}
+                                            </p>
+                                            <p className="text-[9px] text-muted-foreground mt-0.5">
+                                              @{m.username}
+                                            </p>
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
                               </div>
                               <div className="flex justify-end mt-1.5">
                                 <button
@@ -854,9 +1006,20 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                                 </div>
                                 <div className="flex-1">
                                   <div className="flex items-baseline gap-1.5 mb-0.5">
-                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">{reply.author}</span>
+                                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                      {reply.author}
+                                    </span>
                                     <span className="text-[9px] text-slate-400">
-                                      {new Date(reply.createdAt).toLocaleDateString()} at {new Date(reply.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      {new Date(
+                                        reply.createdAt,
+                                      ).toLocaleDateString()}{" "}
+                                      at{" "}
+                                      {new Date(
+                                        reply.createdAt,
+                                      ).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                      })}
                                     </span>
                                   </div>
                                   <div className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed bg-slate-50/80 dark:bg-slate-900/30 px-3 py-2 rounded-lg border border-slate-100/80 dark:border-slate-800/80">
@@ -873,7 +1036,9 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
 
                   {comments.length === 0 && (
                     <div className="py-8 text-center border-2 border-dashed border-slate-50 dark:border-slate-900 rounded-2xl">
-                      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">No activity logs</p>
+                      <p className="text-xs font-bold text-slate-300 uppercase tracking-widest">
+                        No activity logs
+                      </p>
                     </div>
                   )}
                 </div>
@@ -884,14 +1049,18 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
             <div className="w-full md:w-80 bg-slate-50/50 dark:bg-slate-900/30 p-8 space-y-8">
               {/* Status Section */}
               <div className="space-y-3">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Status</span>
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                  Status
+                </span>
                 <select
                   value={status}
                   onChange={(e) => setStatus(e.target.value as any)}
                   className={`w-full flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl text-xs font-bold outline-none transition-colors appearance-none ${
-                    status === 'done' ? 'text-emerald-600 dark:text-emerald-400 border-emerald-100 bg-emerald-50/50' :
-                    status === 'in-progress' ? 'text-blue-600 dark:text-blue-400 border-blue-100 bg-blue-50/50' :
-                    'text-slate-700 dark:text-slate-300'
+                    status === "done"
+                      ? "text-emerald-600 dark:text-emerald-400 border-emerald-100 bg-emerald-50/50"
+                      : status === "in-progress"
+                        ? "text-blue-600 dark:text-blue-400 border-blue-100 bg-blue-50/50"
+                        : "text-slate-700 dark:text-slate-300"
                   }`}
                 >
                   <option value="todo">To Do</option>
@@ -908,18 +1077,23 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-slate-400">
                       <Target className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Project</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        Project
+                      </span>
                     </div>
                     <select
                       value={projectId}
                       onChange={(e) => setProjectId(e.target.value)}
                       disabled={isEditMode}
-                      className={`w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none ${isEditMode ? 'opacity-50 cursor-not-allowed bg-slate-50' : ''}`}
+                      className={`w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none ${isEditMode ? "opacity-50 cursor-not-allowed bg-slate-50" : ""}`}
                     >
-
-                      <option value="" disabled>Select Project</option>
-                      {projectList.map(p => (
-                        <option key={p.id} value={p.id}>{p.title}</option>
+                      <option value="" disabled>
+                        Select Project
+                      </option>
+                      {projectList.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.title}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -928,7 +1102,9 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-slate-400">
                       <LayoutGrid className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Board</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        Board
+                      </span>
                     </div>
                     <select
                       value={boardId}
@@ -937,10 +1113,12 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                     >
                       <option value="">No Board (General)</option>
                       {Object.values(boards)
-                        .filter(b => b.projectId === projectId)
-                        .map(b => (
-                          <option key={b.id} value={b.id}>{b.name}</option>
-                      ))}
+                        .filter((b) => b.projectId === projectId)
+                        .map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.name}
+                          </option>
+                        ))}
                     </select>
                   </div>
 
@@ -948,7 +1126,9 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-slate-400">
                       <Layers className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Sprint</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        Sprint
+                      </span>
                     </div>
                     <select
                       value={sprintId}
@@ -957,10 +1137,12 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                     >
                       <option value="">Backlog (No Sprint)</option>
                       {sprints
-                        .filter(s => s.projectId === projectId)
-                        .map(s => (
-                          <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
-                      ))}
+                        .filter((s) => s.projectId === projectId)
+                        .map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.status})
+                          </option>
+                        ))}
                     </select>
                   </div>
 
@@ -968,7 +1150,9 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-slate-400">
                       <User className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Assignee</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        Assignee
+                      </span>
                     </div>
                     <select
                       value={assignedTo}
@@ -976,8 +1160,10 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                       className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none appearance-none"
                     >
                       <option value="">Unassigned</option>
-                      {projectMembers.map(m => (
-                        <option key={m.uid} value={m.uid}>{m.displayName || m.username}</option>
+                      {projectMembers.map((m) => (
+                        <option key={m.uid} value={m.uid}>
+                          {m.displayName || m.username}
+                        </option>
                       ))}
                     </select>
                   </div>
@@ -986,15 +1172,20 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-slate-400">
                       <AlertCircle className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Priority</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        Priority
+                      </span>
                     </div>
                     <select
                       value={priority}
                       onChange={(e) => setPriority(e.target.value as any)}
-                      className={`w-full border rounded-xl px-3 py-2 text-xs font-bold outline-none transition-colors ${priority === 'high' ? 'bg-rose-50/50 border-rose-100 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900' :
-                        priority === 'medium' ? 'bg-amber-50/50 border-amber-100 text-amber-600 dark:bg-amber-950/20 dark:border-amber-900' :
-                          'bg-slate-50/50 border-slate-100 text-slate-500 dark:bg-slate-900/50 dark:border-slate-800'
-                        }`}
+                      className={`w-full border rounded-xl px-3 py-2 text-xs font-bold outline-none transition-colors ${
+                        priority === "high"
+                          ? "bg-rose-50/50 border-rose-100 text-rose-600 dark:bg-rose-950/20 dark:border-rose-900"
+                          : priority === "medium"
+                            ? "bg-amber-50/50 border-amber-100 text-amber-600 dark:bg-amber-950/20 dark:border-amber-900"
+                            : "bg-slate-50/50 border-slate-100 text-slate-500 dark:bg-slate-900/50 dark:border-slate-800"
+                      }`}
                     >
                       <option value="low">Low</option>
                       <option value="medium">Medium</option>
@@ -1006,7 +1197,9 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-slate-400">
                       <Zap className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Story Points</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        Story Points
+                      </span>
                     </div>
                     <input
                       type="number"
@@ -1021,42 +1214,45 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   <div className="space-y-2">
                     <div className="flex items-center gap-2 text-slate-400">
                       <Calendar className="h-3.5 w-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Due Date</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        Due Date
+                      </span>
                     </div>
                     <input
                       type="date"
                       value={dueDate}
-                      min={new Date().toISOString().split('T')[0]}
+                      min={new Date().toISOString().split("T")[0]}
                       max="2099-12-31"
                       onChange={(e) => setDueDate(e.target.value)}
                       onBlur={(e) => {
                         const val = e.target.value;
                         if (!val) return;
-                        
+
                         const selectedDate = new Date(val);
                         const today = new Date();
                         today.setHours(0, 0, 0, 0);
-                        
+
                         if (selectedDate < today) {
-                           toast.warning("Past dates are not allowed. Restoring previous date.");
-                           setDueDate(lastValidDueDate.current);
-                           return;
+                          toast.warning(
+                            "Past dates are not allowed. Restoring previous date.",
+                          );
+                          setDueDate(lastValidDueDate.current);
+                          return;
                         }
                         if (selectedDate.getFullYear() > 2100) {
-                           toast.warning("Date too far in future. Restoring previous date.");
-                           setDueDate(lastValidDueDate.current);
-                           return;
+                          toast.warning(
+                            "Date too far in future. Restoring previous date.",
+                          );
+                          setDueDate(lastValidDueDate.current);
+                          return;
                         }
 
                         // If valid, update the "last valid" reference
                         lastValidDueDate.current = val;
                       }}
-
                       className="w-full bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
                     />
-
                   </div>
-
                 </div>
               </div>
 
@@ -1064,7 +1260,11 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
                 <div className="flex items-center justify-between text-[10px] font-bold text-slate-400">
                   <span>Created</span>
-                  <span>{initialData?.createdAt ? new Date(initialData.createdAt).toLocaleDateString() : 'Today'}</span>
+                  <span>
+                    {initialData?.createdAt
+                      ? new Date(initialData.createdAt).toLocaleDateString()
+                      : "Today"}
+                  </span>
                 </div>
               </div>
             </div>
