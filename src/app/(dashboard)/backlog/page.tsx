@@ -7,7 +7,7 @@ import { useProjectStore } from "@/store/useProjectStore";
 import { TaskModal } from "@/components/task/TaskModal";
 import { toast } from "@/store/useToastStore";
 import { ConfirmDelete } from "@/components/ui/ConfirmDelete";
-
+import { userService, UserProfile } from "@/lib/userService";
 
 import {
   MoreHorizontal,
@@ -21,28 +21,42 @@ import {
   Filter,
   SlidersHorizontal,
   UserPlus,
-  ChevronDown
+  ChevronDown,
 } from "lucide-react";
 
 export default function BacklogPage() {
-  const { tasks, fetchTasks, fetchMoreTasks, hasMore, isLoading, addTask, editTask, deleteTask } = useKanbanStore();
+  const {
+    tasks,
+    fetchTasks,
+    fetchMoreTasks,
+    hasMore,
+    isLoading,
+    addTask,
+    editTask,
+    deleteTask,
+  } = useKanbanStore();
+  const [assigneeProfiles, setAssigneeProfiles] = useState<
+    Record<string, UserProfile>
+  >({});
   const observer = React.useRef<IntersectionObserver | null>(null);
 
-  const lastTaskElementRef = React.useCallback((node: any) => {
-    if (isLoading) return;
-    if (observer.current) observer.current.disconnect();
-    observer.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && hasMore) {
-        fetchMoreTasks();
-      }
-    });
-    if (node) observer.current.observe(node);
-  }, [isLoading, hasMore, fetchMoreTasks]);
+  const lastTaskElementRef = React.useCallback(
+    (node: any) => {
+      if (isLoading) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          fetchMoreTasks();
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [isLoading, hasMore, fetchMoreTasks],
+  );
   const { user } = useAuthStore();
   const { projects, activeProjectId } = useProjectStore();
 
   const showWorkspace = activeProjectId === "all" || !activeProjectId;
-
 
   const [showDone, setShowDone] = useState(false);
   const [filterProjectId, setFilterProjectId] = useState<string>("all");
@@ -58,6 +72,33 @@ export default function BacklogPage() {
       fetchTasks();
     }
   }, [fetchTasks, user?.uid]);
+
+  useEffect(() => {
+    const assigneeIds = Array.from(
+      new Set(
+        Object.values(tasks)
+          .map((task) => task.assignedTo)
+          .filter(Boolean) as string[],
+      ),
+    );
+
+    const missingIds = assigneeIds.filter((uid) => !assigneeProfiles[uid]);
+    if (missingIds.length === 0) return;
+
+    userService
+      .getUsersByIds(missingIds)
+      .then((profiles) => {
+        setAssigneeProfiles((prev) => ({
+          ...prev,
+          ...Object.fromEntries(
+            profiles.map((profile) => [profile.uid, profile]),
+          ),
+        }));
+      })
+      .catch((err) => {
+        console.error("Failed to load assignees:", err);
+      });
+  }, [tasks, assigneeProfiles]);
 
   // Handle Save (Create or Update)
   const handleSaveTask = (data: any) => {
@@ -117,47 +158,54 @@ export default function BacklogPage() {
   };
 
   // Filter Tasks
-  const filteredTasks = Object.values(tasks).filter(task => {
-    // Tab filter
-    if (activeTab === "active") {
-      if (task.status === "archived") return false;
-    } else {
-      if (task.status !== "archived") return false;
-    }
+  const filteredTasks = Object.values(tasks)
+    .filter((task) => {
+      // Tab filter
+      if (activeTab === "active") {
+        if (task.status === "archived") return false;
+      } else {
+        if (task.status !== "archived") return false;
+      }
 
-    // Search filter
-    if (localSearchQuery.trim()) {
-      const query = localSearchQuery.toLowerCase();
-      const projectName = projects[task.projectId]?.title?.toLowerCase() || "";
-      if (!task.title.toLowerCase().includes(query) &&
-        !(task.description && task.description.toLowerCase().includes(query)) &&
-        !projectName.includes(query)) {
+      // Search filter
+      if (localSearchQuery.trim()) {
+        const query = localSearchQuery.toLowerCase();
+        const projectName =
+          projects[task.projectId]?.title?.toLowerCase() || "";
+        if (
+          !task.title.toLowerCase().includes(query) &&
+          !(
+            task.description && task.description.toLowerCase().includes(query)
+          ) &&
+          !projectName.includes(query)
+        ) {
+          return false;
+        }
+      }
+
+      // Project Dropdown filter
+      if (showWorkspace && filterProjectId !== "all") {
+        if (task.projectId !== filterProjectId) {
+          return false;
+        }
+      }
+
+      // Status filter
+      if (!showDone && task.status === "done") {
         return false;
       }
-    }
 
-    // Project Dropdown filter
-    if (showWorkspace && filterProjectId !== "all") {
-      if (task.projectId !== filterProjectId) {
+      // Shared filter
+      if (filterShared && projects[task.projectId]?.uid === user?.uid) {
         return false;
       }
-    }
 
-    // Status filter
-    if (!showDone && task.status === 'done') {
-      return false;
-    }
-
-    // Shared filter
-    if (filterShared && projects[task.projectId]?.uid === user?.uid) {
-      return false;
-    }
-
-    return true;
-  }).sort((a, b) => {
-    // Sort by creation date descending
-    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-  });
+      return true;
+    })
+    .sort((a, b) => {
+      // Sort by creation date descending
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
   return (
     <div className="flex flex-col gap-8 pb-8 h-full">
@@ -183,17 +231,21 @@ export default function BacklogPage() {
       <div className="flex items-center gap-1 border-b border-border pb-px">
         <button
           onClick={() => setActiveTab("active")}
-          className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === 'active' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === "active" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
         >
           Active Tasks
-          {activeTab === 'active' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
+          {activeTab === "active" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+          )}
         </button>
         <button
           onClick={() => setActiveTab("archived")}
-          className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === 'archived' ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+          className={`px-6 py-3 text-sm font-bold transition-all relative ${activeTab === "archived" ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
         >
           Archived Tasks
-          {activeTab === 'archived' && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />}
+          {activeTab === "archived" && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-full" />
+          )}
         </button>
       </div>
 
@@ -209,7 +261,7 @@ export default function BacklogPage() {
             className="w-full h-10 rounded-xl bg-secondary/50 border-none pl-10 pr-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
           />
         </div>
-        
+
         {showWorkspace && (
           <div className="relative min-w-[180px]">
             <select
@@ -218,8 +270,10 @@ export default function BacklogPage() {
               className="w-full h-10 rounded-xl bg-secondary/50 border-none px-4 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all appearance-none cursor-pointer"
             >
               <option value="all">All Workspaces</option>
-              {Object.values(projects).map(p => (
-                <option key={p.id} value={p.id}>{p.title}</option>
+              {Object.values(projects).map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.title}
+                </option>
               ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
@@ -229,22 +283,24 @@ export default function BacklogPage() {
         <div className="hidden sm:block h-6 w-[1px] bg-border mx-1" />
         <button
           onClick={() => setShowDone(!showDone)}
-          className={`text-xs font-bold px-3 py-1.5 rounded transition-all ${showDone
-            ? 'bg-primary/10 text-primary border border-primary/20'
-            : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-            }`}
+          className={`text-xs font-bold px-3 py-1.5 rounded transition-all ${
+            showDone
+              ? "bg-primary/10 text-primary border border-primary/20"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+          }`}
         >
-          {showDone ? 'Hide Done' : 'Show Done'}
+          {showDone ? "Hide Done" : "Show Done"}
         </button>
 
         <button
           onClick={() => setFilterShared(!filterShared)}
-          className={`text-xs font-bold px-3 py-1.5 rounded transition-all ${filterShared
-            ? 'bg-blue-100 text-blue-600 border border-blue-200'
-            : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-            }`}
+          className={`text-xs font-bold px-3 py-1.5 rounded transition-all ${
+            filterShared
+              ? "bg-blue-100 text-blue-600 border border-blue-200"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+          }`}
         >
-          {filterShared ? 'Shared Workspaces' : 'Shared Workspaces'}
+          {filterShared ? "Shared Workspaces" : "Shared Workspaces"}
         </button>
       </div>
 
@@ -263,54 +319,89 @@ export default function BacklogPage() {
           <tbody className="divide-y divide-border">
             {filteredTasks.length > 0 ? (
               filteredTasks.map((task, index) => (
-                <tr 
-                  key={task.id} 
-                  ref={index === filteredTasks.length - 1 ? lastTaskElementRef : null}
+                <tr
+                  key={task.id}
+                  ref={
+                    index === filteredTasks.length - 1
+                      ? lastTaskElementRef
+                      : null
+                  }
                   className="hover:bg-secondary/30 transition-colors group"
                 >
-                  <td 
+                  <td
                     onClick={() => handleEditTask(task)}
                     className="px-6 py-4 max-w-[250px] cursor-pointer"
                   >
                     <div className="flex items-start gap-3">
                       <div className="h-2 w-2 rounded-full bg-primary/30 mt-1.5 flex-shrink-0" />
                       <div className="overflow-hidden flex-1">
-                        <p className="font-bold text-foreground group-hover:text-primary transition-colors truncate">{task.title}</p>
+                        <p className="font-bold text-foreground group-hover:text-primary transition-colors truncate">
+                          {task.title}
+                        </p>
                         <div className="flex items-center gap-2 mt-1">
                           {showWorkspace && (
-                            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider whitespace-nowrap ${projects[task.projectId]?.uid !== user?.uid ? 'bg-blue-100 text-blue-600' : 'bg-primary/10 text-primary'}`}>
+                            <span
+                              className={`inline-flex items-center rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider whitespace-nowrap ${projects[task.projectId]?.uid !== user?.uid ? "bg-blue-100 text-blue-600" : "bg-primary/10 text-primary"}`}
+                            >
                               {projects[task.projectId]?.title || "Unknown"}
-                              {projects[task.projectId]?.uid !== user?.uid && <span className="ml-1 opacity-70">Shared</span>}
+                              {projects[task.projectId]?.uid !== user?.uid && (
+                                <span className="ml-1 opacity-70">Shared</span>
+                              )}
                             </span>
                           )}
-                          <p className="text-[10px] text-neutral-muted truncate">{task.description}</p>
+                          <p className="text-[10px] text-neutral-muted truncate">
+                            {task.description}
+                          </p>
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-[10px] font-bold capitalize ${statusColors[task.status]}`}>
-                      {task.status.replace('-', ' ')}
+                    <span
+                      className={`inline-flex items-center rounded-lg border px-2 py-0.5 text-[10px] font-bold capitalize ${statusColors[task.status]}`}
+                    >
+                      {task.status.replace("-", " ")}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     {task.priority && priorityIcons[task.priority] ? (
                       <div className="flex items-center gap-2">
                         <div className={priorityIcons[task.priority].color}>
-                          {React.createElement(priorityIcons[task.priority].icon, { size: 14 })}
+                          {React.createElement(
+                            priorityIcons[task.priority].icon,
+                            { size: 14 },
+                          )}
                         </div>
-                        <span className="text-[10px] font-bold text-foreground">{priorityIcons[task.priority].label}</span>
+                        <span className="text-[10px] font-bold text-foreground">
+                          {priorityIcons[task.priority].label}
+                        </span>
                       </div>
                     ) : (
-                      <span className="text-[10px] text-muted-foreground italic">None</span>
+                      <span className="text-[10px] text-muted-foreground italic">
+                        None
+                      </span>
                     )}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <div className="h-6 w-6 rounded-lg bg-secondary flex items-center justify-center text-[8px] font-bold ring-1 ring-border shadow-sm">
-                        {task.assignedTo ? task.assignedTo.substring(0, 2).toUpperCase() : "U"}
+                        {task.assignedTo
+                          ? (
+                              assigneeProfiles[task.assignedTo]?.displayName ||
+                              assigneeProfiles[task.assignedTo]?.username ||
+                              task.assignedTo
+                            )
+                              .substring(0, 2)
+                              .toUpperCase()
+                          : "U"}
                       </div>
-                      <span className="text-[10px] font-medium text-foreground">{task.assignedTo || "Unassigned"}</span>
+                      <span className="text-[10px] font-medium text-foreground">
+                        {task.assignedTo
+                          ? assigneeProfiles[task.assignedTo]?.displayName ||
+                            assigneeProfiles[task.assignedTo]?.username ||
+                            task.assignedTo
+                          : "Unassigned"}
+                      </span>
                     </div>
                   </td>
                   <td className="px-6 py-4 text-right w-[120px]">
@@ -323,7 +414,10 @@ export default function BacklogPage() {
                           <Pencil size={14} />
                         </button>
                         <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteTask(task.id); }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteTask(task.id);
+                          }}
                           className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex items-center justify-center transition-colors shadow-sm bg-card border border-border cursor-pointer"
                         >
                           <Trash2 size={14} />
@@ -338,16 +432,23 @@ export default function BacklogPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground">
+                <td
+                  colSpan={5}
+                  className="px-6 py-12 text-center text-muted-foreground"
+                >
                   <div className="flex flex-col items-center gap-2">
                     <div className="h-12 w-12 rounded-full bg-secondary flex items-center justify-center mb-2">
                       <Search className="h-6 w-6 opacity-20" />
                     </div>
                     <p className="font-bold text-foreground">
-                      {localSearchQuery ? "No matches found" : "Backlog is empty"}
+                      {localSearchQuery
+                        ? "No matches found"
+                        : "Backlog is empty"}
                     </p>
                     <p className="text-xs">
-                      {localSearchQuery ? "Try a different search term." : "Congratulations! You've triaged all pending work."}
+                      {localSearchQuery
+                        ? "Try a different search term."
+                        : "Congratulations! You've triaged all pending work."}
                     </p>
                   </div>
                 </td>
@@ -355,11 +456,13 @@ export default function BacklogPage() {
             )}
           </tbody>
         </table>
-        
+
         {isLoading && (
           <div className="p-8 flex justify-center items-center gap-3 text-muted-foreground bg-secondary/10">
             <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs font-bold uppercase tracking-widest">Loading more tasks...</span>
+            <span className="text-xs font-bold uppercase tracking-widest">
+              Loading more tasks...
+            </span>
           </div>
         )}
       </div>
@@ -374,7 +477,7 @@ export default function BacklogPage() {
         initialData={activeEditTask}
       />
 
-      <ConfirmDelete 
+      <ConfirmDelete
         open={!!deleteTaskId}
         onClose={() => setDeleteTaskId(null)}
         onConfirm={confirmDeleteTask}

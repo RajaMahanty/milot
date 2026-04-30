@@ -678,7 +678,7 @@ export default function Board() {
                   if (activeProjectId !== "all") {
                     if (activeBoardId) {
                       columnTasks = columnTasks.filter(
-                        (t) => t.boardId === activeBoardId,
+                        (t) => t.boardId === activeBoardId || !t.boardId,
                       );
                     } else if (Object.keys(boards).length > 0) {
                       columnTasks = columnTasks.filter((t) => !t.boardId);
@@ -737,7 +737,11 @@ export default function Board() {
                   {Object.values(tasks)
                     .filter((t) => {
                       if (activeProjectId !== "all") {
-                        if (activeBoardId && t.boardId !== activeBoardId)
+                        if (
+                          activeBoardId &&
+                          t.boardId !== activeBoardId &&
+                          t.boardId
+                        )
                           return false;
                         if (
                           !activeBoardId &&
