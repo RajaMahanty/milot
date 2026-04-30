@@ -27,7 +27,12 @@ interface InviteModalProps {
   projectName: string;
 }
 
-export function InviteModal({ open, onOpenChange, projectId, projectName }: InviteModalProps) {
+export function InviteModal({
+  open,
+  onOpenChange,
+  projectId,
+  projectName,
+}: InviteModalProps) {
   const { projects, inviteMemberToProject, updateProject } = useProjectStore();
   const { teams, fetchTeams } = useTeamStore();
   const { sendNotification } = useNotificationStore();
@@ -72,7 +77,7 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
       const data = await userService.searchUsers(value);
       // Filter out already-members and self
       const filteredData = data.filter(
-        (u) => u.uid !== user?.uid && !project?.memberIds?.includes(u.uid)
+        (u) => u.uid !== user?.uid && !project?.memberIds?.includes(u.uid),
       );
       setResults(filteredData);
     } catch {
@@ -106,6 +111,16 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
     toast.success("Team assigned to workspace!");
   };
 
+  const handleRemoveTeam = async (teamId: string) => {
+    if (!project) return;
+    const confirmed = window.confirm("Remove this team from the workspace?");
+    if (!confirmed) return;
+
+    const newTeamIds = project.teamIds?.filter((id) => id !== teamId) ?? [];
+    await updateProject(project.id, { teamIds: newTeamIds });
+    toast.success("Team removed from workspace.");
+  };
+
   const handleRemoveMember = async (uid: string) => {
     if (!project) return;
     const newMemberIds = project.memberIds.filter((id) => id !== uid);
@@ -133,7 +148,9 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
                 <DialogPrimitive.Title className="text-lg font-bold tracking-tight">
                   Invite to Workspace
                 </DialogPrimitive.Title>
-                <p className="text-xs text-muted-foreground mt-0.5">{projectName}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {projectName}
+                </p>
               </div>
             </div>
             <DialogPrimitive.Close className="p-2 rounded-xl hover:bg-secondary text-muted-foreground transition-colors">
@@ -205,11 +222,16 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
                           >
                             <div className="flex items-center gap-3">
                               <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-xs font-bold ring-1 ring-primary/20">
-                                {u.displayName?.substring(0, 2).toUpperCase() || "U"}
+                                {u.displayName?.substring(0, 2).toUpperCase() ||
+                                  "U"}
                               </div>
                               <div>
-                                <p className="text-sm font-bold text-foreground leading-none">{u.displayName}</p>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">@{u.username}</p>
+                                <p className="text-sm font-bold text-foreground leading-none">
+                                  {u.displayName}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground mt-0.5">
+                                  @{u.username}
+                                </p>
                               </div>
                             </div>
                             <button
@@ -239,11 +261,13 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
                     </div>
                   )}
 
-                  {query.length >= 2 && !isSearching && results.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4 italic">
-                      No users found matching "{query}".
-                    </p>
-                  )}
+                  {query.length >= 2 &&
+                    !isSearching &&
+                    results.length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-4 italic">
+                        No users found matching "{query}".
+                      </p>
+                    )}
                 </div>
 
                 {/* Current Members */}
@@ -264,11 +288,16 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
                       >
                         <div className="flex items-center gap-3">
                           <div className="h-9 w-9 rounded-xl bg-secondary text-primary flex items-center justify-center text-xs font-bold ring-1 ring-border">
-                            {m.displayName?.substring(0, 2).toUpperCase() || "U"}
+                            {m.displayName?.substring(0, 2).toUpperCase() ||
+                              "U"}
                           </div>
                           <div>
-                            <p className="text-sm font-bold text-foreground leading-none">{m.displayName}</p>
-                            <p className="text-[10px] text-muted-foreground mt-0.5">@{m.username}</p>
+                            <p className="text-sm font-bold text-foreground leading-none">
+                              {m.displayName}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                              @{m.username}
+                            </p>
                           </div>
                         </div>
                         {project?.uid === m.uid ? (
@@ -315,33 +344,32 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
                                 {t.name.substring(0, 2).toUpperCase()}
                               </div>
                               <div>
-                                <p className="text-sm font-bold text-foreground leading-none">{t.name}</p>
+                                <p className="text-sm font-bold text-foreground leading-none">
+                                  {t.name}
+                                </p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  {t.memberIds.length} member{t.memberIds.length !== 1 ? "s" : ""}
+                                  {t.memberIds.length} member
+                                  {t.memberIds.length !== 1 ? "s" : ""}
                                 </p>
                               </div>
                             </div>
-                            <button
-                              onClick={() => handleAssignTeam(t.id)}
-                              disabled={assigned}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                                assigned
-                                  ? "bg-emerald-50 text-emerald-600 border border-emerald-100"
-                                  : "bg-primary/10 text-primary hover:bg-primary hover:text-white active:scale-95"
-                              }`}
-                            >
-                              {assigned ? (
-                                <>
-                                  <CheckCircle2 className="h-3.5 w-3.5" />
-                                  Assigned
-                                </>
-                              ) : (
-                                <>
-                                  <Users className="h-3.5 w-3.5" />
-                                  Assign
-                                </>
-                              )}
-                            </button>
+                            {assigned ? (
+                              <button
+                                onClick={() => handleRemoveTeam(t.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-destructive border border-destructive/20 hover:bg-destructive/10 transition-all"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                Remove
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleAssignTeam(t.id)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-primary/10 text-primary hover:bg-primary hover:text-white active:scale-95"
+                              >
+                                <Users className="h-3.5 w-3.5" />
+                                Assign
+                              </button>
+                            )}
                           </div>
                         );
                       })}
@@ -349,7 +377,9 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
                   ) : (
                     <div className="text-center py-8 border-2 border-dashed border-border rounded-2xl">
                       <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
-                      <p className="text-xs font-bold text-muted-foreground">No teams created yet.</p>
+                      <p className="text-xs font-bold text-muted-foreground">
+                        No teams created yet.
+                      </p>
                       <p className="text-[10px] text-muted-foreground/60 mt-1">
                         Create a team in the Team page first.
                       </p>
@@ -363,7 +393,8 @@ export function InviteModal({ open, onOpenChange, projectId, projectName }: Invi
           {/* Footer */}
           <div className="px-7 pb-6 pt-4 border-t border-border">
             <p className="text-[10px] text-muted-foreground text-center">
-              Invited users will receive a notification and must accept to gain access.
+              Invited users will receive a notification and must accept to gain
+              access.
             </p>
           </div>
         </DialogPrimitive.Content>
