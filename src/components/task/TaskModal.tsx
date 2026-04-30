@@ -744,7 +744,7 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                   {subtasks.map((st) => (
                     <div
                       key={st.id}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 group transition-colors"
+                      className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 group transition-colors"
                     >
                       <button
                         onClick={() => toggleSubtask(st.id)}
@@ -756,11 +756,11 @@ export function TaskModal({ open, onClose, onSave, initialData }: Props) {
                           <Circle className="h-5 w-5" />
                         )}
                       </button>
-                      <input
-                        type="text"
+                      <textarea
+                        rows={1}
                         value={st.title}
                         onChange={(e) => editSubtask(st.id, e.target.value)}
-                        className={`flex-1 bg-transparent border-none text-sm font-medium focus:ring-0 p-0 ${st.completed ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-300"}`}
+                        className={`flex-1 min-h-[38px] resize-none overflow-hidden break-words whitespace-pre-wrap bg-transparent border-none text-sm font-medium focus:ring-0 p-0 ${st.completed ? "line-through text-slate-400" : "text-slate-700 dark:text-slate-300"}`}
                       />
                       <button
                         onClick={() => removeSubtask(st.id)}
