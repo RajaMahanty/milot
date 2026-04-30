@@ -426,7 +426,7 @@ export default function Board() {
         <div className="flex flex-wrap items-center gap-3">
           {/* Member Avatars */}
           <div className="flex -space-x-2 mr-1">
-            {projectMembers.slice(0, 4).map((m) => (
+            {projectMembers.slice(0, 5).map((m) => (
               <div
                 key={m.uid}
                 className="h-8 w-8 rounded-full border-2 border-background bg-primary/10 text-primary flex items-center justify-center text-[10px] font-bold ring-1 ring-border"
@@ -435,9 +435,9 @@ export default function Board() {
                 {m.displayName?.substring(0, 2).toUpperCase() || "U"}
               </div>
             ))}
-            {projectMembers.length > 4 && (
+            {projectMembers.length > 5 && (
               <div className="h-8 w-8 rounded-full border-2 border-background bg-secondary flex items-center justify-center text-[9px] font-bold text-muted-foreground ring-1 ring-border">
-                +{projectMembers.length - 4}
+                +{projectMembers.length - 5}
               </div>
             )}
             {activeProject && (
