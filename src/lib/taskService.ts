@@ -1,4 +1,4 @@
-import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, orderBy } from "firebase/firestore";
+import { collection, doc, setDoc, getDocs, updateDoc, deleteDoc, query, where, limit, startAfter, QueryDocumentSnapshot, DocumentData, onSnapshot, QueryConstraint } from "firebase/firestore";
 import { db } from "./firebase";
 import { Task } from "@/store/useTaskStore";
 
@@ -11,7 +11,7 @@ export const taskService = {
     pageSize: number = 20, 
     lastVisible?: QueryDocumentSnapshot<DocumentData> | null
   ): Promise<{ tasks: Record<string, Task>, lastVisible: QueryDocumentSnapshot<DocumentData> | null }> {
-    let constraints: any[] = [
+    const constraints: QueryConstraint[] = [
       where("uid", "==", uid),
       limit(pageSize)
     ];
@@ -63,6 +63,54 @@ export const taskService = {
       });
     }
     return allTasks;
+  },
+
+  subscribeTasksByProjectIds(
+    projectIds: string[],
+    callback: (tasks: Record<string, Task>) => void
+  ): () => void {
+    if (!projectIds || projectIds.length === 0) {
+      callback({});
+      return () => {};
+    }
+
+    const chunks: string[][] = [];
+    for (let i = 0; i < projectIds.length; i += 10) {
+      chunks.push(projectIds.slice(i, i + 10));
+    }
+
+    const chunkResults: Record<number, Record<string, Task>> = {};
+    const unsubscribes: (() => void)[] = [];
+
+    const notifyMerged = () => {
+      const merged: Record<string, Task> = {};
+      Object.values(chunkResults).forEach((chunkTasks) => {
+        Object.assign(merged, chunkTasks);
+      });
+      callback(merged);
+    };
+
+    chunks.forEach((chunk, index) => {
+      const q = query(
+        collection(db, TASKS_COLLECTION),
+        where("projectId", "in", chunk)
+      );
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const tasks: Record<string, Task> = {};
+        snapshot.forEach((doc) => {
+          tasks[doc.id] = doc.data() as Task;
+        });
+        chunkResults[index] = tasks;
+        notifyMerged();
+      });
+
+      unsubscribes.push(unsubscribe);
+    });
+
+    return () => {
+      unsubscribes.forEach((unsubscribe) => unsubscribe());
+    };
   },
 
   // Create a new task (assumes uid is already set on the task object)

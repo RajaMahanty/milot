@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { taskService } from '@/lib/taskService';
 import { useAuthStore } from './useAuthStore';
 import { toast } from './useToastStore';
+import type { QueryDocumentSnapshot, DocumentData } from 'firebase/firestore';
 
 
 export interface SubTask {
@@ -56,7 +57,9 @@ interface KanbanState {
   columns: Record<string, Column>;
   isLoading: boolean;
   error: string | null;
+  unsubscribeListener: (() => void) | null;
   fetchTasks: () => Promise<void>;
+  unsubscribeTasks: () => void;
   addTask: (task: Omit<Task, 'uid'>) => Promise<void>;
   editTask: (taskId: string, updates: Partial<Task>) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
@@ -67,7 +70,7 @@ interface KanbanState {
   completeSprint: (sprintId?: string) => Promise<void>;
   
   // Pagination
-  lastVisible: any | null;
+  lastVisible: QueryDocumentSnapshot<DocumentData> | null;
   hasMore: boolean;
   fetchMoreTasks: () => Promise<void>;
 }
@@ -84,6 +87,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
   columns: defaultColumns,
   isLoading: false,
   error: null,
+  unsubscribeListener: null,
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
   
@@ -92,45 +96,45 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
   fetchTasks: async () => {
     const user = useAuthStore.getState().user;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useProjectStore } = require('./useProjectStore');
     const activeProjectId = useProjectStore.getState().activeProjectId;
 
     if (!user || !activeProjectId) {
+      get().unsubscribeTasks();
       set({ tasks: {}, columns: defaultColumns, isLoading: false, lastVisible: null, hasMore: false });
       return;
     }
 
-    set({ isLoading: true, error: null, lastVisible: null, hasMore: true });
-    try {
-      let projects = useProjectStore.getState().projects;
+    set({ isLoading: true, error: null, lastVisible: null, hasMore: false });
+    get().unsubscribeTasks();
 
-      // If projects haven't loaded yet (e.g. page reload), wait for them
-      if (Object.keys(projects).length === 0) {
-        await useProjectStore.getState().fetchProjects();
-        projects = useProjectStore.getState().projects;
-      }
+    let projects = useProjectStore.getState().projects;
+    if (Object.keys(projects).length === 0) {
+      await useProjectStore.getState().fetchProjects();
+      projects = useProjectStore.getState().projects;
+    }
 
-      let allDbTasks: Record<string, Task> = {};
-      let lastDoc: any = null;
+    const activeProjectIds =
+      activeProjectId !== "all"
+        ? [activeProjectId]
+        : Object.keys(projects);
 
-      if (activeProjectId !== "all") {
-        // Single project: fetch all tasks for this project (covers shared + owned)
-        const projectTasks = await taskService.fetchTasksByProjectIds([activeProjectId]);
-        allDbTasks = projectTasks;
-      } else {
-        // All Workspaces: fetch tasks from ALL projects the user has access to
-        const allProjectIds = Object.keys(projects);
-        if (allProjectIds.length > 0) {
-          allDbTasks = await taskService.fetchTasksByProjectIds(allProjectIds);
-        }
-      }
+    if (activeProjectIds.length === 0) {
+      set({ tasks: {}, columns: defaultColumns, isLoading: false, hasMore: false });
+      return;
+    }
 
+    set({ tasks: {}, columns: defaultColumns });
+
+    const unsubscribe = taskService.subscribeTasksByProjectIds(activeProjectIds, (allDbTasks) => {
       const cols = JSON.parse(JSON.stringify(defaultColumns));
-      const validDbTasks: Record<string, any> = {};
+      const validDbTasks: Record<string, Task> = {};
+      const currentProjects = useProjectStore.getState().projects;
 
-      Object.keys(allDbTasks).forEach(taskId => {
+      Object.keys(allDbTasks).forEach((taskId) => {
         const t = allDbTasks[taskId];
-        if (projects[t.projectId]) {
+        if (currentProjects[t.projectId]) {
           validDbTasks[taskId] = t;
           if (t.status !== "archived" && cols[t.status]) {
             cols[t.status].taskIds.push(taskId);
@@ -139,24 +143,30 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
       });
 
       set({ 
-        tasks: validDbTasks, 
-        columns: cols, 
+        tasks: validDbTasks,
+        columns: cols,
         isLoading: false,
-        lastVisible: lastDoc,
-        hasMore: !!lastDoc
       });
-    } catch (err: any) {
-      console.error(err);
-      set({ error: err.message, isLoading: false });
-    }
+    });
+
+    set({ unsubscribeListener: unsubscribe, isLoading: false, hasMore: false });
   },
 
+
+  unsubscribeTasks: () => {
+    const unsubscribe = get().unsubscribeListener;
+    if (unsubscribe) {
+      unsubscribe();
+      set({ unsubscribeListener: null });
+    }
+  },
 
   fetchMoreTasks: async () => {
     const { lastVisible, hasMore, isLoading, tasks, columns } = get();
     if (!hasMore || isLoading || !lastVisible) return;
 
     const user = useAuthStore.getState().user;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useProjectStore } = require('./useProjectStore');
     const activeProjectId = useProjectStore.getState().activeProjectId;
 
@@ -195,7 +205,9 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
   addTask: async (task) => {
     const user = useAuthStore.getState().user;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useProjectStore } = require('./useProjectStore');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useSprintStore } = require('./useSprintStore');
 
     const activeProjectId = task.projectId || useProjectStore.getState().activeProjectId;
@@ -419,6 +431,7 @@ export const useKanbanStore = create<KanbanState>((set, get) => ({
 
   completeSprint: async (sprintId?: string) => {
     const state = get();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { useSprintStore } = require('./useSprintStore');
     const targetSprintId = sprintId || useSprintStore.getState().activeSprintId;
 
