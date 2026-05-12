@@ -4,9 +4,14 @@
 
 const getEnv = (key: string, value: string | undefined, defaultValue?: string): string => {
   const finalValue = value || defaultValue;
+  const isServer = typeof window === 'undefined';
+  const isPublic = key.startsWith('NEXT_PUBLIC_');
   
+  // Only log missing variable errors if we are in the environment where they should exist
   if (finalValue === undefined && process.env.NODE_ENV === 'production') {
-    console.error(`CRITICAL ERROR: Environment variable ${key} is missing in production.`);
+    if (isServer || isPublic) {
+      console.error(`CRITICAL ERROR: Environment variable ${key} is missing in production.`);
+    }
   }
   
   return finalValue || '';
@@ -33,6 +38,8 @@ export const config = {
 
 // Validation check
 export const validateConfig = () => {
+  const isServer = typeof window === 'undefined';
+  
   const requiredFirebaseKeys = [
     'apiKey',
     'authDomain',
@@ -50,7 +57,9 @@ export const validateConfig = () => {
     }
   });
 
-  if (!config.ai.openRouterApiKey) {
+  // ONLY validate the AI API key on the server. 
+  // It will always be missing on the client because it's a secret.
+  if (isServer && !config.ai.openRouterApiKey) {
     missingKeys.push('OPENROUTER_API_KEY');
   }
 
