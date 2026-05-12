@@ -47,7 +47,6 @@ export function StartSprintModal({ open, onOpenChange, onStart }: Props) {
       <DialogPrimitive.Portal>
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm animate-in fade-in" />
         <DialogPrimitive.Content 
-          aria-describedby={undefined}
           className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-6 rounded-3xl border border-border bg-card p-8 shadow-card animate-in zoom-in-95 duration-200"
         >
           <DialogPrimitive.Title className="text-2xl font-bold tracking-tight flex items-center gap-3">
@@ -56,6 +55,9 @@ export function StartSprintModal({ open, onOpenChange, onStart }: Props) {
              </div>
              Add New Sprint
           </DialogPrimitive.Title>
+          <DialogPrimitive.Description className="sr-only">
+            Create a new sprint by providing a name, duration, and goal.
+          </DialogPrimitive.Description>
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">

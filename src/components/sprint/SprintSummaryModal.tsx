@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { CheckCircle2, ChevronRight, AlertCircle, ArrowRightCircle } from "lucide-react";
@@ -30,11 +31,13 @@ export function SprintSummaryModal({ open, onClose, sprintName, tasks, onComplet
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent 
         className="sm:max-w-md" 
-        aria-describedby={undefined}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>Complete {sprintName}</DialogTitle>
+          <DialogDescription className="sr-only">
+            Review the summary of the completed sprint and decide what to do with incomplete tasks.
+          </DialogDescription>
         </DialogHeader>
 
         <div className="py-6 space-y-6">

@@ -6,6 +6,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Search, Plus, CheckCircle2, Circle } from "lucide-react";
 import { Task } from "@/store/useTaskStore";
@@ -46,11 +47,13 @@ export function BacklogTaskPicker({ open, onClose, tasks, onAdd }: Props) {
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
       <DialogContent 
         className="sm:max-w-xl max-h-[80vh] flex flex-col p-0 overflow-hidden" 
-        aria-describedby={undefined}
         onPointerDownOutside={(e) => e.preventDefault()}
       >
         <DialogHeader className="p-6 pb-2">
           <DialogTitle>Add Tasks to Sprint</DialogTitle>
+          <DialogDescription className="sr-only">
+            Select tasks from the backlog to add them to the current sprint.
+          </DialogDescription>
           <div className="relative mt-4">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
