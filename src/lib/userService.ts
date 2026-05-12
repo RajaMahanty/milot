@@ -12,6 +12,18 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 
+const USERNAME_PATTERN = /^[a-z_]+$/;
+
+const sanitizeUsername = (value: string) => {
+  const normalized = value.toLowerCase().replace(/\s+/g, "_");
+  return normalized
+    .replace(/[^a-z_]/g, "")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+};
+
+const isValidUsername = (username: string) => USERNAME_PATTERN.test(username);
+
 export interface UserProfile {
   uid: string;
   username: string;

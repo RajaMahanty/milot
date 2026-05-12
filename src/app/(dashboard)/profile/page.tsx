@@ -45,6 +45,7 @@ export default function ProfilePage() {
   const [editName, setEditName] = useState("");
   const [editBio, setEditBio] = useState("");
   const [editUsername, setEditUsername] = useState("");
+  const [usernameError, setUsernameError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
   // Search/Network States
@@ -114,20 +115,43 @@ export default function ProfilePage() {
     }
   };
 
+  const usernamePattern = /^[a-z_]+$/;
+
+  const sanitizeUsernameInput = (value: string) => {
+    const normalized = value.toLowerCase().replace(/\s+/g, "_");
+    return normalized
+      .replace(/[^a-z_]/g, "")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  };
+
   const handleUpdateProfile = async () => {
     if (!user) return;
     setIsSaving(true);
     try {
-      const cleanUsername = editUsername
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, "_");
+      const cleanUsername = sanitizeUsernameInput(editUsername.trim());
+
+      if (!cleanUsername) {
+        setUsernameError("Username is required.");
+        setIsSaving(false);
+        return;
+      }
+
+      if (!usernamePattern.test(cleanUsername)) {
+        setUsernameError(
+          "Username may only contain lowercase letters (a-z) and underscores.",
+        );
+        setIsSaving(false);
+        return;
+      }
+
+      setUsernameError(null);
 
       if (profile?.username !== cleanUsername) {
         const isAvailable =
           await userService.isUsernameAvailable(cleanUsername);
         if (!isAvailable) {
-          toast.error("Username is already taken.");
+          setUsernameError("Username is already taken.");
           setIsSaving(false);
           return;
         }
@@ -480,13 +504,31 @@ export default function ProfilePage() {
                     <input
                       type="text"
                       value={editUsername}
-                      onChange={(e) =>
-                        setEditUsername(
-                          e.target.value.toLowerCase().replace(/\s+/g, "_"),
-                        )
-                      }
-                      className="w-full h-10 rounded-xl bg-secondary/30 border border-border px-4 text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary"
+                      onChange={(e) => {
+                        const sanitized = sanitizeUsernameInput(e.target.value);
+                        setEditUsername(sanitized);
+                        if (
+                          sanitized !==
+                          e.target.value.toLowerCase().replace(/\s+/g, "_")
+                        ) {
+                          setUsernameError(
+                            "Username may only contain lowercase letters (a-z) and underscores.",
+                          );
+                        } else {
+                          setUsernameError(null);
+                        }
+                      }}
+                      className={`w-full h-10 rounded-xl bg-secondary/30 border px-4 text-sm font-medium focus:outline-none focus:ring-1 ${
+                        usernameError
+                          ? "border-destructive focus:border-destructive focus:ring-destructive/20"
+                          : "border-border focus:border-primary focus:ring-primary"
+                      }`}
                     />
+                    {usernameError && (
+                      <p className="mt-2 text-[10px] text-destructive">
+                        {usernameError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold uppercase text-muted-foreground mb-1.5 ml-1">
